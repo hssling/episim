@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.git/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+site/
+dist/
+*.egg-info/
+notebooks/*_run/

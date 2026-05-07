@@ -1,0 +1,20 @@
+{
+  "title": "EPISIM: Epidemiology Platform for In Silico Methods",
+  "upload_type": "software",
+  "description": "A reproducible simulation lab for epidemiological, medical, allied-science, and mixed-methods study designs.",
+  "creators": [
+    {
+      "name": "Siddalingaiah, H. S.",
+      "affiliation": "Department of Community Medicine, Shridevi Institute of Medical Sciences and Research Hospital"
+    }
+  ],
+  "license": "MIT",
+  "keywords": [
+    "epidemiology",
+    "simulation",
+    "causal inference",
+    "clinical trials",
+    "health economics",
+    "mixed methods"
+  ]
+}

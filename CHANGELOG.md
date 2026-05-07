@@ -2,6 +2,20 @@
 
 All notable changes to EPISIM are documented here. Format: Keep-a-Changelog. Versioning: SemVer.
 
+## [v0.8.0-alpha] - 2026-05-08
+
+### Added
+
+- Full Phase-1 design catalog: RCT cluster, stepped-wedge, interrupted time series, regression discontinuity, instrumental variables, propensity score, survival/Cox-style time-to-event, meta-analysis, agent-style SEIR, microsimulation, Markov decision analysis, network contagion, and qualitative/mixed-methods.
+- Notebooks `06` through `18` covering the full roadmap design catalog.
+- Docker, Zenodo, and JOSS submission skeleton assets.
+- Per-design Hugging Face Space wrapper.
+
+### Changed
+
+- Promoted the alpha package version to `0.8.0a1`.
+- Expanded the lab registry to cover all 18 Phase-1 notebooks/designs.
+
 ## [v0.2.0-alpha] - 2026-05-08
 
 ### Added

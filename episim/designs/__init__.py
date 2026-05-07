@@ -1,5 +1,43 @@
 """EPISIM study-design modules."""
 
-from episim.designs import case_control, cohort, cross_sectional, ecological, rct_parallel
+from episim.designs import (
+    case_control,
+    cohort,
+    cross_sectional,
+    ecological,
+    instrumental_variables,
+    interrupted_time_series,
+    markov_decision,
+    meta_analysis,
+    microsimulation,
+    network_contagion,
+    propensity_score,
+    qualitative_mixed_methods,
+    rct_cluster,
+    rct_parallel,
+    regression_discontinuity,
+    seir,
+    stepped_wedge,
+    survival_cox,
+)
 
-__all__ = ["case_control", "cohort", "cross_sectional", "ecological", "rct_parallel"]
+__all__ = [
+    "case_control",
+    "cohort",
+    "cross_sectional",
+    "ecological",
+    "instrumental_variables",
+    "interrupted_time_series",
+    "markov_decision",
+    "meta_analysis",
+    "microsimulation",
+    "network_contagion",
+    "propensity_score",
+    "qualitative_mixed_methods",
+    "rct_cluster",
+    "rct_parallel",
+    "regression_discontinuity",
+    "seir",
+    "stepped_wedge",
+    "survival_cox",
+]

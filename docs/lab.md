@@ -8,6 +8,19 @@ EPISIM now exposes a lab-facing registry over implemented designs.
 - `case_control`: source-population case-control sampling with odds-ratio estimation.
 - `cohort`: longitudinal follow-up with attrition, risk ratio, and risk difference.
 - `rct_parallel`: two-arm randomized experiment with treatment-effect summaries.
+- `rct_cluster`: cluster-level randomization with individual outcomes.
+- `stepped_wedge`: sequential cluster rollout with repeated cross-sections.
+- `interrupted_time_series`: segmented level and slope change simulation.
+- `regression_discontinuity`: threshold assignment with local linear estimation.
+- `instrumental_variables`: encouragement design with Wald LATE.
+- `propensity_score`: inverse-probability weighting under confounding.
+- `survival_cox`: censored time-to-event simulation with hazard-ratio summary.
+- `meta_analysis`: DerSimonian-Laird random-effects pooling.
+- `agent_based_seir`: stochastic SEIR epidemic simulation.
+- `microsimulation_lifetable`: individual health-state life-table simulation.
+- `markov_decision`: cost-QALY Markov decision model.
+- `network_contagion`: SIR-style spread over a random contact network.
+- `qualitative_mixed_methods`: interview saturation plus survey strand.
 - `ecological_peai`: four-phase PEAI simulation with transportability, ascertainment-bias, and fairness auditing.
 
 ## Python API

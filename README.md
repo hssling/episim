@@ -20,28 +20,42 @@ study.archive("results/cohort_demo")
 
 ## Status
 
-Alpha lab build with deterministic study archives and a growing design registry.
+Alpha lab build with deterministic study archives and the full Phase-1 design registry.
 Implemented surfaces currently include:
 
 - `cross_sectional`
 - `case_control`
 - `cohort`
 - `rct_parallel`
+- `rct_cluster`
+- `stepped_wedge`
+- `interrupted_time_series`
+- `regression_discontinuity`
+- `instrumental_variables`
+- `propensity_score`
+- `survival_cox`
+- `meta_analysis`
+- `agent_based_seir`
+- `microsimulation_lifetable`
+- `markov_decision`
+- `network_contagion`
+- `qualitative_mixed_methods`
 - `ecological_peai`
 
 ## Product surface
 
 - Package API for deterministic simulation and artifact archiving
 - Lab registry via `episim.lab`
-- Notebooks for implemented designs
+- 18 notebooks for the full Phase-1 design catalog
 - Hugging Face Space app in `apps/hf_space/`
 - Kaggle publishing metadata in `platforms/kaggle/`
+- Dockerfile, Zenodo metadata, and JOSS paper skeleton
 
 ## Roadmap
 
 | Phase | Timing | Contents |
 |---|---|---|
-| **1** | Weeks 1-8 | Expand the registry toward the full 18-design teaching and methods lab |
+| **1** | Weeks 1-8 | Full 18-design teaching and methods lab |
 | **2** | Weeks 9-14 | Pre-registration / methods-research lab with power, bias, design-comparison, and fairness audit packages |
 | **3** | Months 4-6 | Generative AI simulation engine: natural-language to EPISIM `Study` to manuscript draft |
 | **4** | Months 7-9 | Beyond medicine: educational, economic, psychological, sociological, and qualitative designs |
