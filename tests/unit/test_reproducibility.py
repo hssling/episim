@@ -33,7 +33,11 @@ def test_study_archive_writes_manifest(tmp_path: Path) -> None:
     df = pd.DataFrame({"id": [1, 2], "x": [0.1, 0.2]})
     study = Study(
         seed=42, design="cross_sectional",
-        params={"n": 2}, data=df, library_version="0.1.0a1",
+        params={"n": 2},
+        data=df,
+        library_version="0.1.0a1",
+        results={"summary": {"metric": 1.23}},
+        artifacts={"table 1": pd.DataFrame({"metric": ["x"], "value": [1.23]})},
     )
     study.archive(tmp_path)
     manifest_path = tmp_path / "manifest.json"
@@ -43,4 +47,8 @@ def test_study_archive_writes_manifest(tmp_path: Path) -> None:
     assert manifest["design"] == "cross_sectional"
     assert manifest["library_version"] == "0.1.0a1"
     assert "data_sha256" in manifest
+    assert manifest["results_file"] == "results.json"
+    assert len(manifest["artifacts"]) == 1
     assert (tmp_path / "data.csv").exists()
+    assert (tmp_path / "results.json").exists()
+    assert (tmp_path / "artifacts" / "table_1.csv").exists()

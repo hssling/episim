@@ -14,3 +14,6 @@
 
 ## Attrition
 ::: episim.core.attrition
+
+## Analytics
+::: episim.analytics.estimators

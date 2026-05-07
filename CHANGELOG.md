@@ -2,20 +2,38 @@
 
 All notable changes to EPISIM are documented here. Format: Keep-a-Changelog. Versioning: SemVer.
 
-## [v0.1.0-alpha] — 2026-05-08
+## [v0.2.0-alpha] - 2026-05-08
 
 ### Added
 
-- `episim.core.reproducibility` — `seed()` context, `Study` dataclass, SHA-256 manifest.
-- `episim.core.populations.cohort` — parameterised cohort generator (normal / bernoulli / uniform).
-- `episim.core.outcomes.logistic` — formulaic-based logistic outcome model.
-- `episim.core.bias` — measurement error and ascertainment-bias primitives.
-- `episim.core.attrition` — MCAR / MAR / MNAR mechanisms.
-- `episim.analytics.estimators` — prevalence and odds-ratio with bootstrap CIs.
-- `episim.designs.cross_sectional` — first design module.
-- `episim.reporting.ai_disclosure.block` — two-flavour AI disclosure (`library_only`, `generative`).
-- `episim.reporting.manifest.write_manifest` — `Study` archiver.
+- `episim.lab` registry and runner for catalogued study designs.
+- Richer `Study` archives with `results.json` and artifact CSV tables.
+- App-ready `cross_sectional.simulate()` workflow.
+- Real design modules for case-control, prospective cohort, and parallel-group RCT simulations.
+- `ecological.run_peai()` four-phase PEAI lab with weighting convergence, transportability, ascertainment-bias diagnostics, and fairness auditing.
+- Five smoke-tested notebooks: cross-sectional, case-control, cohort, RCT parallel, and ecological PEAI.
+- Hugging Face Space-ready Gradio app in `apps/hf_space/`.
+- Kaggle publishing metadata and overview script in `platforms/kaggle/`.
+- Lab and deployment documentation pages.
+
+### Changed
+
+- Reworked the public README around the lab product surface.
+- Expanded analytics with risk ratio and risk difference estimators.
+- Switched docs to the built-in Read the Docs MkDocs theme for strict local builds without Material warning noise.
+
+## [v0.1.0-alpha] - 2026-05-08
+
+### Added
+
+- `episim.core.reproducibility` with `seed()` context, `Study` dataclass, and SHA-256 manifest.
+- `episim.core.populations.cohort` parameterised cohort generator.
+- `episim.core.outcomes.logistic` formulaic-based logistic outcome model.
+- `episim.core.bias` measurement error and ascertainment-bias primitives.
+- `episim.core.attrition` MCAR / MAR / MNAR mechanisms.
+- `episim.analytics.estimators` prevalence and odds-ratio with bootstrap CIs.
+- `episim.designs.cross_sectional` first design module.
+- `episim.reporting.ai_disclosure.block` disclosure helper.
+- `episim.reporting.manifest.write_manifest` study archiver.
 - First notebook: `01_cross_sectional.ipynb`.
-- CI: ruff + mypy + pytest 90 % coverage + nbmake.
-- Docs: MkDocs Material + mkdocstrings deployed to GitHub Pages.
-- 100 % line + branch coverage of `episim/` modules at v0.1.0-alpha.
+- CI, docs, and coverage gates for the foundation release.

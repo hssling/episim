@@ -1,0 +1,13 @@
+{
+  "id": "hssling/episim-lab-overview",
+  "title": "EPISIM Lab Overview",
+  "code_file": "episim_lab_overview.py",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": "false",
+  "enable_gpu": "false",
+  "enable_internet": "false",
+  "dataset_sources": [
+    "hssling/episim-simulation-lab-demos"
+  ]
+}

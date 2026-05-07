@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "episim"
-version = "0.1.0a1"
+version = "0.2.0a1"
 description = "Epidemiology Platform for In Silico Methods"
 readme = "README.md"
 authors = [{name = "Siddalingaiah H. S.", email = "hssling@gmail.com"}]
@@ -29,6 +29,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "build>=1.2",
     "pytest>=8.0",
     "pytest-cov>=4.1",
     "hypothesis>=6.100",
@@ -41,6 +42,9 @@ dev = [
 docs = [
     "mkdocs-material>=9.5",
     "mkdocstrings[python]>=0.25",
+]
+app = [
+    "gradio>=5.0",
 ]
 
 [project.urls]

@@ -17,3 +17,11 @@ def test_cross_sectional_returns_study_object() -> None:
     assert study.params["n"] == 1_000
     assert study.params["exposure"] == "exposure"
     assert study.params["outcome"] == "y"
+
+
+def test_cross_sectional_simulate_returns_analysis_results() -> None:
+    study = cross_sectional.simulate(seed_value=20260508, n=900)
+    assert isinstance(study, Study)
+    assert study.results["prevalence"] > 0.0
+    assert study.results["odds_ratio"] > 1.0
+    assert 0.0 < study.results["exposure_rate"] < 1.0

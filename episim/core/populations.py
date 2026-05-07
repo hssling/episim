@@ -1,11 +1,18 @@
 """Population/cohort generators."""
 from __future__ import annotations
 
+from typing import TypeAlias
+
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 
+DistributionSpec: TypeAlias = tuple[str | float | int, ...]
 
-def _sample(spec: tuple[str, ...], n: int, rng: np.random.Generator) -> np.ndarray:
+
+def _sample(
+    spec: DistributionSpec, n: int, rng: np.random.Generator
+) -> npt.NDArray[np.float64]:
     """Sample n values from a distribution spec like ('normal', mu, sigma)."""
     name = spec[0]
     if name == "normal":
@@ -24,9 +31,9 @@ def cohort(
     n: int,
     rng: np.random.Generator,
     *,
-    age: tuple[str, ...] | None = None,
-    sex: tuple[str, ...] | None = None,
-    **other: tuple[str, ...],
+    age: DistributionSpec | None = None,
+    sex: DistributionSpec | None = None,
+    **other: DistributionSpec,
 ) -> pd.DataFrame:
     """Generate a cohort of size n with optional covariates.
 

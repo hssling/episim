@@ -4,6 +4,7 @@ from __future__ import annotations
 import datetime as _dt
 import hashlib
 import json
+import re
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -38,6 +39,8 @@ class Study:
     params: dict[str, Any]
     data: pd.DataFrame
     library_version: str
+    results: dict[str, Any] = field(default_factory=dict)
+    artifacts: dict[str, pd.DataFrame] = field(default_factory=dict)
     timestamp: str = field(
         default_factory=lambda: _dt.datetime.now(_dt.UTC).isoformat()
     )
@@ -47,6 +50,27 @@ class Study:
         out = Path(path)
         out.mkdir(parents=True, exist_ok=True)
         self.data.to_csv(out / "data.csv", index=False)
+        if self.results:
+            (out / "results.json").write_text(
+                json.dumps(self.results, indent=2, default=str)
+            )
+        artifact_entries: list[dict[str, Any]] = []
+        if self.artifacts:
+            artifact_dir = out / "artifacts"
+            artifact_dir.mkdir(exist_ok=True)
+            for name, frame in self.artifacts.items():
+                slug = re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("_") or "artifact"
+                filename = f"{slug}.csv"
+                frame.to_csv(artifact_dir / filename, index=False)
+                artifact_entries.append(
+                    {
+                        "name": name,
+                        "file": f"artifacts/{filename}",
+                        "rows": len(frame),
+                        "columns": list(frame.columns),
+                        "sha256": sha256_dataframe(frame),
+                    }
+                )
         manifest = {
             "seed": self.seed,
             "design": self.design,
@@ -56,6 +80,8 @@ class Study:
             "data_sha256": sha256_dataframe(self.data),
             "n_rows": len(self.data),
             "columns": list(self.data.columns),
+            "results_file": "results.json" if self.results else None,
+            "artifacts": artifact_entries,
         }
         (out / "manifest.json").write_text(
             json.dumps(manifest, indent=2, default=str)
