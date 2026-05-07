@@ -1,0 +1,26 @@
+site_name: EPISIM
+site_url: https://hssling.github.io/episim
+repo_url: https://github.com/hssling/episim
+theme:
+  name: material
+  palette:
+    primary: deep purple
+  features:
+    - content.code.copy
+    - navigation.tabs
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - API:
+    - Core: api/core.md
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences

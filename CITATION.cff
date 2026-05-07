@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use EPISIM in academic work, please cite it as below."
+title: "EPISIM: Epidemiology Platform for In Silico Methods"
+authors:
+  - family-names: "Siddalingaiah"
+    given-names: "H. S."
+    email: "hssling@gmail.com"
+    affiliation: "Department of Community Medicine, Shridevi Institute of Medical Sciences and Research Hospital, Tumakuru, Karnataka, India"
+version: "0.1.0a1"
+date-released: "2026-05-08"
+license: MIT
+repository-code: "https://github.com/hssling/episim"
+url: "https://hssling.github.io/episim"
+keywords:
+  - epidemiology
+  - simulation
+  - reproducible-research
+  - exposome
+  - prediction-models
+  - fairness-audit
