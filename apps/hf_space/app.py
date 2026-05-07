@@ -11,7 +11,15 @@ from typing import Any
 import gradio as gr
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parents[2]
+APP_PATH = Path(__file__).resolve()
+ROOT = next(
+    (
+        candidate
+        for candidate in (APP_PATH.parent, *APP_PATH.parents)
+        if (candidate / "episim").is_dir()
+    ),
+    APP_PATH.parent,
+)
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
