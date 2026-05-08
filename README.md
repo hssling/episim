@@ -34,6 +34,11 @@ print(bundle.plan.hypotheses)
 print(bundle.report.markdown)
 ```
 
+The archived research bundle includes protocol files, a realistic synthetic
+data-collection toolset, database dictionary, collection-event audit trail,
+SQLite research database, analysis tables, PNG figures, guideline checklist,
+references, declarations, and a structured manuscript draft.
+
 ## Status
 
 Alpha lab build with deterministic study archives and the full Phase-1 design registry.
@@ -63,6 +68,8 @@ Implemented surfaces currently include:
 - Package API for deterministic simulation and artifact archiving
 - Lab registry via `episim.lab`
 - Research-question-to-report workflow via `episim.research`
+- Manuscript-grade research assets: tables, figures, checklist, declarations,
+  references, and synthetic research database
 - 18 notebooks for the full Phase-1 design catalog
 - Hugging Face Space app in `apps/hf_space/`
 - Kaggle publishing metadata in `platforms/kaggle/`

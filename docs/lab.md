@@ -59,6 +59,19 @@ bundle.report.markdown
 bundle.archive("results/frailty_research_bundle")
 ```
 
+The archive contains:
+
+- `protocol.json` and `protocol.md`
+- `report.md` with structured abstract, methods, results, discussion,
+  conclusions, references, and declarations
+- `data_collection_tools.csv`
+- `database_dictionary.csv`
+- `collection_events.csv`
+- `synthetic_research_database.sqlite`
+- analysis tables under `tables/`
+- PNG figures and `figure_plan.csv` under `figures/`
+- `guideline_checklist.csv`
+
 The workflow generates synthetic data only. It is suitable for methods
 development, teaching, protocol refinement, and feasibility simulation; it is
 not evidence that a real intervention or exposure works in the real world.

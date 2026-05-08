@@ -2,6 +2,21 @@
 
 All notable changes to EPISIM are documented here. Format: Keep-a-Changelog. Versioning: SemVer.
 
+## [v0.10.0-alpha] - 2026-05-08
+
+### Added
+
+- Strengthened `episim.research` with manuscript-grade asset production:
+  analysis tables, variable summaries, data-quality tables, interpretation
+  tables, figure plan, PNG figure generation, guideline checklist, references,
+  and structured declarations.
+- Added realistic synthetic data-capture/database production assets:
+  database dictionary, collection-event audit log, and SQLite research database
+  containing observations, tools, follow-up, outcomes, checklist, declarations,
+  references, and analysis tables.
+- Expanded Hugging Face Space research workflow outputs for database dictionary,
+  collection-event audit previews, variable summaries, and guideline checklist.
+
 ## [v0.9.0-alpha] - 2026-05-08
 
 ### Added

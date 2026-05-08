@@ -95,7 +95,7 @@ def _run_research_question(
     question: str,
     design_key: str,
     overrides_json: str,
-) -> tuple[str, Any, Any, Any, Any, str, str]:
+) -> tuple[str, Any, Any, Any, Any, Any, Any, Any, str, str]:
     overrides = json.loads(overrides_json) if overrides_json.strip() else {}
     selected_design = None if design_key == "auto" else design_key
     bundle = conduct_research(question, design_key=selected_design, **overrides)
@@ -116,8 +116,12 @@ def _run_research_question(
     return (
         protocol,
         bundle.instruments,
+        bundle.database_dictionary,
+        bundle.collection_events.head(100),
         bundle.follow_up_schedule,
         bundle.outcome_record,
+        bundle.analysis_tables["table_2_variable_summary"],
+        bundle.guideline_checklist,
         bundle.observations,
         bundle.report.markdown,
         archive,
@@ -155,8 +159,16 @@ with gr.Blocks(title="EPISIM Lab", theme=gr.themes.Soft()) as demo:
         rq_run = gr.Button("Conduct simulated research", variant="primary")
         rq_protocol = gr.Markdown(label="Protocol")
         rq_instruments = gr.Dataframe(label="Data collection tools", interactive=False, wrap=True)
+        rq_dictionary = gr.Dataframe(label="Database dictionary", interactive=False, wrap=True)
+        rq_events = gr.Dataframe(
+            label="Collection-event audit preview", interactive=False, wrap=True
+        )
         rq_follow_up = gr.Dataframe(label="Follow-up schedule", interactive=False, wrap=True)
         rq_outcomes = gr.Dataframe(label="Outcome record", interactive=False, wrap=True)
+        rq_variables = gr.Dataframe(label="Variable summary table", interactive=False, wrap=True)
+        rq_checklist = gr.Dataframe(
+            label="Reporting guideline checklist", interactive=False, wrap=True
+        )
         rq_observations = gr.Dataframe(label="Observation preview", interactive=False, wrap=True)
         rq_report = gr.Markdown(label="Manuscript-style report")
         rq_bundle = gr.File(label="Complete research bundle")
@@ -199,8 +211,12 @@ with gr.Blocks(title="EPISIM Lab", theme=gr.themes.Soft()) as demo:
         outputs=[
             rq_protocol,
             rq_instruments,
+            rq_dictionary,
+            rq_events,
             rq_follow_up,
             rq_outcomes,
+            rq_variables,
+            rq_checklist,
             rq_observations,
             rq_report,
             rq_bundle,

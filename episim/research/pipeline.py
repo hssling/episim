@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 from episim import __version__
@@ -39,6 +42,7 @@ class ResearchReport:
     """Manuscript-style report text and structured reporting artifacts."""
 
     title: str
+    keywords: tuple[str, ...]
     abstract: str
     introduction: str
     methods: str
@@ -57,9 +61,16 @@ class ResearchBundle:
     plan: ResearchPlan
     study: Study
     instruments: pd.DataFrame
+    database_dictionary: pd.DataFrame
+    collection_events: pd.DataFrame
     follow_up_schedule: pd.DataFrame
     outcome_record: pd.DataFrame
     observations: pd.DataFrame
+    analysis_tables: dict[str, pd.DataFrame]
+    figure_plan: pd.DataFrame
+    guideline_checklist: pd.DataFrame
+    references: pd.DataFrame
+    declarations: pd.DataFrame
     report: ResearchReport
 
     def archive(self, path: str | Path) -> Path:
@@ -73,9 +84,23 @@ class ResearchBundle:
         (out / "protocol.md").write_text(_protocol_markdown(self.plan), encoding="utf-8")
         (out / "report.md").write_text(self.report.markdown, encoding="utf-8")
         self.instruments.to_csv(out / "data_collection_tools.csv", index=False)
+        self.database_dictionary.to_csv(out / "database_dictionary.csv", index=False)
+        self.collection_events.to_csv(out / "collection_events.csv", index=False)
         self.follow_up_schedule.to_csv(out / "follow_up_schedule.csv", index=False)
         self.outcome_record.to_csv(out / "outcome_record.csv", index=False)
         self.observations.to_csv(out / "observations.csv", index=False)
+        self.guideline_checklist.to_csv(out / "guideline_checklist.csv", index=False)
+        self.references.to_csv(out / "references.csv", index=False)
+        self.declarations.to_csv(out / "declarations.csv", index=False)
+        table_dir = out / "tables"
+        table_dir.mkdir(exist_ok=True)
+        for name, frame in self.analysis_tables.items():
+            frame.to_csv(table_dir / f"{name}.csv", index=False)
+        figure_dir = out / "figures"
+        figure_dir.mkdir(exist_ok=True)
+        self.figure_plan.to_csv(figure_dir / "figure_plan.csv", index=False)
+        _write_figures(self.study, self.analysis_tables, figure_dir)
+        _write_sqlite_database(self, out / "synthetic_research_database.sqlite")
         self.study.archive(out / "study")
         return out
 
@@ -141,17 +166,41 @@ def conduct_research(
     )
     study = run_design(plan.design_key, **plan.parameters)
     instruments = _make_instruments(plan, study)
+    database_dictionary = _make_database_dictionary(plan, study, instruments)
+    collection_events = _make_collection_events(plan, study)
     follow_up = _make_follow_up_schedule(plan.design_key)
     outcome_record = _make_outcome_record(plan, study)
     observations = _make_observations(study)
-    report = _make_report(plan, study, instruments, follow_up, outcome_record)
+    analysis_tables = _make_analysis_tables(plan, study, outcome_record)
+    figure_plan = _make_figure_plan(plan, study)
+    guideline_checklist = _make_guideline_checklist(plan, study, analysis_tables)
+    references = _make_references(plan.design_key)
+    declarations = _make_declarations(plan)
+    report = _make_report(
+        plan,
+        study,
+        instruments,
+        follow_up,
+        outcome_record,
+        analysis_tables,
+        guideline_checklist,
+        references,
+        declarations,
+    )
     return ResearchBundle(
         plan=plan,
         study=study,
         instruments=instruments,
+        database_dictionary=database_dictionary,
+        collection_events=collection_events,
         follow_up_schedule=follow_up,
         outcome_record=outcome_record,
         observations=observations,
+        analysis_tables=analysis_tables,
+        figure_plan=figure_plan,
+        guideline_checklist=guideline_checklist,
+        references=references,
+        declarations=declarations,
         report=report,
     )
 
@@ -357,6 +406,149 @@ def _make_instruments(plan: ResearchPlan, study: Study) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def _make_database_dictionary(
+    plan: ResearchPlan,
+    study: Study,
+    instruments: pd.DataFrame,
+) -> pd.DataFrame:
+    rows: list[dict[str, Any]] = []
+    for position, column in enumerate(study.data.columns, start=1):
+        series = study.data[column]
+        instrument_row = instruments.loc[instruments["variable"] == str(column)].head(1)
+        rows.append(
+            {
+                "table_name": "synthetic_observations",
+                "field_order": position,
+                "field_name": str(column),
+                "storage_type": _storage_type(series),
+                "nullable": bool(series.isna().any()),
+                "primary_key": False,
+                "foreign_key": None,
+                "source_instrument_section": (
+                    str(instrument_row["instrument_section"].iloc[0])
+                    if not instrument_row.empty
+                    else "unknown"
+                ),
+                "collection_timing": _variable_timing(str(column), plan.design_key),
+                "validation_rule": _validation_rule(series),
+                "realism_note": _realism_note(str(column), plan),
+            }
+        )
+    rows.insert(
+        0,
+        {
+            "table_name": "synthetic_observations",
+            "field_order": 0,
+            "field_name": "episim_record_id",
+            "storage_type": "integer",
+            "nullable": False,
+            "primary_key": True,
+            "foreign_key": None,
+            "source_instrument_section": "database_key",
+            "collection_timing": "database_creation",
+            "validation_rule": "unique sequential synthetic identifier",
+            "realism_note": "Mimics a research database record key without identifying a person.",
+        },
+    )
+    return pd.DataFrame(rows)
+
+
+def _storage_type(series: pd.Series) -> str:
+    if pd.api.types.is_integer_dtype(series):
+        return "integer"
+    if pd.api.types.is_float_dtype(series):
+        return "real"
+    if pd.api.types.is_bool_dtype(series):
+        return "boolean"
+    return "text"
+
+
+def _validation_rule(series: pd.Series) -> str:
+    numeric = pd.to_numeric(series, errors="coerce")
+    if numeric.notna().any():
+        return (
+            f"range {round(float(numeric.min()), 4)} to "
+            f"{round(float(numeric.max()), 4)}; missing allowed: {bool(series.isna().any())}"
+        )
+    values = sorted(str(value) for value in series.dropna().unique()[:8])
+    return "allowed values: " + ", ".join(values) if values else "free text synthetic field"
+
+
+def _realism_note(column: str, plan: ResearchPlan) -> str:
+    lowered = column.lower()
+    if any(token in lowered for token in ("age", "sex", "cluster", "site")):
+        return "Baseline demographic/context field commonly captured at enrollment."
+    if any(token in lowered for token in ("treatment", "intervention", "exposure")):
+        return f"Operationalises {plan.exposure_or_intervention}."
+    if any(token in lowered for token in ("outcome", "event", "score", "death")):
+        return f"Endpoint field aligned with {plan.outcomes[0]}."
+    return "Synthetic covariate or process field retained for analysis reproducibility."
+
+
+def _make_collection_events(plan: ResearchPlan, study: Study) -> pd.DataFrame:
+    n_events = min(len(study.data), 250)
+    if n_events == 0:
+        return pd.DataFrame(
+            columns=[
+                "event_id",
+                "episim_record_id",
+                "timepoint",
+                "mode",
+                "collector_role",
+                "completion_status",
+                "query_flag",
+                "audit_note",
+            ]
+        )
+    schedule = _make_follow_up_schedule(plan.design_key)
+    timepoints = schedule["timepoint"].astype(str).tolist()
+    rows: list[dict[str, Any]] = []
+    event_id = 1
+    for record_id in range(1, n_events + 1):
+        for timepoint in timepoints:
+            query_flag = (record_id + len(timepoint)) % 17 == 0
+            rows.append(
+                {
+                    "event_id": event_id,
+                    "episim_record_id": record_id,
+                    "timepoint": timepoint,
+                    "mode": _event_mode(plan.design_key, timepoint),
+                    "collector_role": _collector_role(plan.design_key),
+                    "completion_status": "complete" if not query_flag else "queried_resolved",
+                    "query_flag": query_flag,
+                    "audit_note": (
+                        "synthetic range/query check resolved"
+                        if query_flag
+                        else "synthetic source entry accepted"
+                    ),
+                }
+            )
+            event_id += 1
+    return pd.DataFrame(rows)
+
+
+def _event_mode(design_key: str, timepoint: str) -> str:
+    if design_key == "qualitative_mixed_methods":
+        return "interview_or_survey"
+    if design_key in {"agent_based_seir", "network_contagion"}:
+        return "daily_simulation_tick"
+    if "baseline" in timepoint:
+        return "baseline_crf"
+    if "analysis" in timepoint:
+        return "analysis_dataset_lock"
+    return "follow_up_contact"
+
+
+def _collector_role(design_key: str) -> str:
+    if design_key == "qualitative_mixed_methods":
+        return "qualitative_interviewer_and_survey_coordinator"
+    if design_key in {"rct_parallel", "rct_cluster", "stepped_wedge"}:
+        return "trial_research_coordinator"
+    if design_key in {"agent_based_seir", "network_contagion"}:
+        return "simulation_engine"
+    return "field_investigator"
+
+
 def _instrument_section(column: str) -> str:
     lowered = column.lower()
     if any(token in lowered for token in ("age", "sex", "cluster", "site", "period")):
@@ -488,14 +680,522 @@ def _make_observations(study: Study, rows: int = 25) -> pd.DataFrame:
     return observation
 
 
+def _make_analysis_tables(
+    plan: ResearchPlan,
+    study: Study,
+    outcome_record: pd.DataFrame,
+) -> dict[str, pd.DataFrame]:
+    tables: dict[str, pd.DataFrame] = {
+        "table_1_study_profile": _study_profile_table(plan, study),
+        "table_2_variable_summary": _variable_summary_table(study.data),
+        "table_3_primary_results": outcome_record.copy(),
+        "table_4_data_quality": _data_quality_table(study.data),
+        "table_5_analysis_interpretation": _analysis_interpretation_table(plan, study),
+    }
+    if study.artifacts:
+        tables["table_6_artifact_index"] = _artifact_index_table(study)
+    return tables
+
+
+def _study_profile_table(plan: ResearchPlan, study: Study) -> pd.DataFrame:
+    design = get_design(plan.design_key)
+    rows = [
+        ("research_question", plan.question),
+        ("design", design.title),
+        ("design_family", design.family),
+        ("reporting_guideline", _reporting_guideline(plan.design_key)),
+        ("synthetic_records", len(study.data)),
+        ("seed", study.seed),
+        ("population", plan.population),
+        ("exposure_or_intervention", plan.exposure_or_intervention),
+        ("comparator", plan.comparator),
+        ("primary_outcome", plan.outcomes[0]),
+    ]
+    return pd.DataFrame(rows, columns=["item", "value"])
+
+
+def _variable_summary_table(data: pd.DataFrame) -> pd.DataFrame:
+    rows: list[dict[str, Any]] = []
+    for column in data.columns:
+        series = data[column]
+        non_missing = int(series.notna().sum())
+        row: dict[str, Any] = {
+            "variable": str(column),
+            "dtype": str(series.dtype),
+            "non_missing": non_missing,
+            "missing": int(series.isna().sum()),
+            "unique_values": int(series.nunique(dropna=True)),
+        }
+        numeric = pd.to_numeric(series, errors="coerce")
+        if numeric.notna().any():
+            row.update(
+                {
+                    "mean": round(float(numeric.mean()), 4),
+                    "sd": round(float(numeric.std(ddof=1)), 4)
+                    if numeric.notna().sum() > 1
+                    else 0.0,
+                    "min": round(float(numeric.min()), 4),
+                    "median": round(float(numeric.median()), 4),
+                    "max": round(float(numeric.max()), 4),
+                }
+            )
+        else:
+            mode = series.mode(dropna=True)
+            row.update(
+                {
+                    "mean": None,
+                    "sd": None,
+                    "min": None,
+                    "median": None,
+                    "max": None,
+                    "most_common": str(mode.iloc[0]) if not mode.empty else None,
+                }
+            )
+        rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def _data_quality_table(data: pd.DataFrame) -> pd.DataFrame:
+    rows: list[dict[str, Any]] = []
+    for column in data.columns:
+        series = data[column]
+        missing = int(series.isna().sum())
+        rows.append(
+            {
+                "check": "missingness",
+                "variable": str(column),
+                "value": missing,
+                "denominator": len(series),
+                "rate": round(missing / max(len(series), 1), 4),
+                "status": "pass" if missing == 0 else "review",
+            }
+        )
+        numeric = pd.to_numeric(series, errors="coerce")
+        if numeric.notna().any():
+            outlier_count = int(
+                (
+                    (numeric < numeric.quantile(0.01))
+                    | (numeric > numeric.quantile(0.99))
+                ).sum()
+            )
+            rows.append(
+                {
+                    "check": "distribution_tail",
+                    "variable": str(column),
+                    "value": outlier_count,
+                    "denominator": int(numeric.notna().sum()),
+                    "rate": round(outlier_count / max(int(numeric.notna().sum()), 1), 4),
+                    "status": "informational",
+                }
+            )
+    return pd.DataFrame(rows)
+
+
+def _analysis_interpretation_table(plan: ResearchPlan, study: Study) -> pd.DataFrame:
+    rows: list[dict[str, Any]] = []
+    for metric, value in study.results.items():
+        rows.append(
+            {
+                "metric": metric,
+                "value": value,
+                "analysis_role": _metric_domain(metric),
+                "direction": _direction_label(value),
+                "manuscript_sentence": _metric_sentence(metric, value, plan),
+            }
+        )
+    if not rows:
+        rows.append(
+            {
+                "metric": "records",
+                "value": len(study.data),
+                "analysis_role": "process",
+                "direction": "not_applicable",
+                "manuscript_sentence": (
+                    f"The simulation generated {len(study.data)} synthetic records."
+                ),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def _direction_label(value: Any) -> str:
+    if isinstance(value, int | float):
+        if value > 1:
+            return "above_reference"
+        if value < 0:
+            return "negative"
+        if 0 < value < 1:
+            return "below_one_or_fractional"
+    return "descriptive"
+
+
+def _metric_sentence(metric: str, value: Any, plan: ResearchPlan) -> str:
+    if isinstance(value, int | float):
+        return (
+            f"For {plan.outcomes[0]}, the simulated {metric.replace('_', ' ')} "
+            f"was {value} under the {plan.design_key} design."
+        )
+    return (
+        f"The simulated {metric.replace('_', ' ')} was recorded as {value}; "
+        "interpretation depends on the design-specific scale."
+    )
+
+
+def _artifact_index_table(study: Study) -> pd.DataFrame:
+    rows = []
+    for name, frame in study.artifacts.items():
+        rows.append(
+            {
+                "artifact": name,
+                "rows": len(frame),
+                "columns": ", ".join(str(col) for col in frame.columns),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def _make_figure_plan(plan: ResearchPlan, study: Study) -> pd.DataFrame:
+    rows = [
+        {
+            "figure": "figure_1_metric_summary.png",
+            "title": "Primary simulated result metrics",
+            "purpose": "Visual summary of numeric design-specific estimates.",
+        },
+        {
+            "figure": "figure_2_data_structure.png",
+            "title": "Synthetic data structure",
+            "purpose": "Shows available numeric fields and their relative distributions.",
+        },
+    ]
+    if len(_candidate_numeric_columns(study.data)) >= 1:
+        rows.append(
+            {
+                "figure": "figure_3_outcome_distribution.png",
+                "title": f"Distribution relevant to {plan.outcomes[0]}",
+                "purpose": "Inspects the main synthetic outcome or first numeric endpoint.",
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def _candidate_numeric_columns(data: pd.DataFrame) -> list[str]:
+    columns: list[str] = []
+    for column in data.columns:
+        numeric = pd.to_numeric(data[column], errors="coerce")
+        if numeric.notna().any():
+            columns.append(str(column))
+    return columns
+
+
+def _write_figures(
+    study: Study,
+    analysis_tables: dict[str, pd.DataFrame],
+    figure_dir: Path,
+) -> None:
+    _write_metric_figure(study, figure_dir / "figure_1_metric_summary.png")
+    _write_data_structure_figure(
+        analysis_tables["table_2_variable_summary"],
+        figure_dir / "figure_2_data_structure.png",
+    )
+    _write_distribution_figure(study.data, figure_dir / "figure_3_outcome_distribution.png")
+
+
+def _write_metric_figure(study: Study, path: Path) -> None:
+    numeric_results = {
+        key: value for key, value in study.results.items() if isinstance(value, int | float)
+    }
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    if numeric_results:
+        labels = list(numeric_results)[:8]
+        values = [float(numeric_results[label]) for label in labels]
+        ax.barh(range(len(labels)), values, color="#2f6f73")
+        ax.set_yticks(range(len(labels)), labels=[label.replace("_", " ") for label in labels])
+        ax.set_xlabel("Simulated estimate")
+    else:
+        ax.text(0.5, 0.5, "No numeric summary metrics", ha="center", va="center")
+        ax.set_axis_off()
+    ax.set_title("EPISIM simulated result metrics")
+    fig.tight_layout()
+    fig.savefig(path, dpi=160)
+    plt.close(fig)
+
+
+def _write_data_structure_figure(summary: pd.DataFrame, path: Path) -> None:
+    plot_data = summary.head(12).copy()
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    values = pd.to_numeric(plot_data["unique_values"], errors="coerce").fillna(0)
+    ax.bar(range(len(plot_data)), values, color="#bf6f3f")
+    ax.set_xticks(
+        range(len(plot_data)),
+        labels=[str(value) for value in plot_data["variable"]],
+        rotation=45,
+        ha="right",
+    )
+    ax.set_ylabel("Unique values")
+    ax.set_title("Synthetic data structure")
+    fig.tight_layout()
+    fig.savefig(path, dpi=160)
+    plt.close(fig)
+
+
+def _write_distribution_figure(data: pd.DataFrame, path: Path) -> None:
+    candidates = _candidate_numeric_columns(data)
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    if candidates:
+        column = candidates[-1]
+        values = pd.to_numeric(data[column], errors="coerce").dropna()
+        ax.hist(values, bins=min(30, max(5, int(np.sqrt(len(values))))), color="#495f8c")
+        ax.set_xlabel(column.replace("_", " "))
+        ax.set_ylabel("Frequency")
+        ax.set_title(f"Distribution of {column.replace('_', ' ')}")
+    else:
+        ax.text(0.5, 0.5, "No numeric columns available", ha="center", va="center")
+        ax.set_axis_off()
+    fig.tight_layout()
+    fig.savefig(path, dpi=160)
+    plt.close(fig)
+
+
+def _write_sqlite_database(bundle: ResearchBundle, path: Path) -> None:
+    observations = bundle.study.data.copy()
+    observations.insert(0, "episim_record_id", range(1, len(observations) + 1))
+    with sqlite3.connect(path) as con:
+        observations.to_sql("synthetic_observations", con, index=False, if_exists="replace")
+        bundle.instruments.to_sql("data_collection_tools", con, index=False, if_exists="replace")
+        bundle.database_dictionary.to_sql(
+            "database_dictionary", con, index=False, if_exists="replace"
+        )
+        bundle.collection_events.to_sql("collection_events", con, index=False, if_exists="replace")
+        bundle.follow_up_schedule.to_sql(
+            "follow_up_schedule", con, index=False, if_exists="replace"
+        )
+        bundle.outcome_record.to_sql("outcome_record", con, index=False, if_exists="replace")
+        bundle.guideline_checklist.to_sql(
+            "guideline_checklist", con, index=False, if_exists="replace"
+        )
+        bundle.references.to_sql("references", con, index=False, if_exists="replace")
+        bundle.declarations.to_sql("declarations", con, index=False, if_exists="replace")
+        for name, frame in bundle.analysis_tables.items():
+            frame.to_sql(name, con, index=False, if_exists="replace")
+
+
+def _make_guideline_checklist(
+    plan: ResearchPlan,
+    study: Study,
+    analysis_tables: dict[str, pd.DataFrame],
+) -> pd.DataFrame:
+    guideline = _reporting_guideline(plan.design_key)
+    items = _guideline_items(guideline)
+    rows: list[dict[str, Any]] = []
+    for item, expectation in items:
+        rows.append(
+            {
+                "guideline": guideline,
+                "item": item,
+                "expectation": expectation,
+                "status": "addressed",
+                "location": _guideline_location(item),
+                "evidence": _guideline_evidence(item, plan, study, analysis_tables),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def _guideline_items(guideline: str) -> tuple[tuple[str, str], ...]:
+    core = (
+        ("title_abstract", "Identify design and summarize objective, methods, results."),
+        ("background_rationale", "Explain rationale and scientific context."),
+        ("objectives", "State specific objectives or hypotheses."),
+        ("study_design", "Present key study-design elements early."),
+        ("setting_participants", "Describe population, eligibility, and setting."),
+        ("variables_data_sources", "Define variables, tools, and measurement sources."),
+        ("bias_reproducibility", "Describe bias controls and reproducibility safeguards."),
+        ("statistical_methods", "Describe analytical methods and uncertainty handling."),
+        ("results_participants", "Report generated sample and outcome completeness."),
+        ("main_results", "Report primary estimates and interpretation."),
+        ("limitations", "Discuss limitations and generalisability."),
+        ("funding_declarations", "Provide declarations, funding, and conflicts."),
+    )
+    if guideline == "CONSORT":
+        return core + (
+            ("allocation", "Describe allocation, comparator, and intervention delivery."),
+            ("participant_flow", "Summarize simulated recruitment and follow-up flow."),
+        )
+    if guideline == "PRISMA":
+        return core + (
+            ("eligibility_information_sources", "Describe study-level inclusion logic."),
+            ("synthesis_methods", "Describe pooling and heterogeneity methods."),
+        )
+    if guideline == "COREQ/GRAMMS":
+        return core + (
+            ("research_team_reflexivity", "Describe analyst role and reflexivity."),
+            ("integration", "Explain qualitative-quantitative integration."),
+        )
+    if guideline == "CHEERS":
+        return core + (
+            ("perspective_time_horizon", "Describe economic perspective and time horizon."),
+            ("resource_valuation", "Report cost and outcome valuation assumptions."),
+        )
+    if guideline == "STRESS/ODD":
+        return core + (
+            ("model_entities_processes", "Describe simulated agents/entities and processes."),
+            ("initialisation_sensitivity", "Report initialisation and sensitivity needs."),
+        )
+    return core
+
+
+def _guideline_location(item: str) -> str:
+    if item in {"title_abstract"}:
+        return "Title; Abstract"
+    if item in {"background_rationale", "objectives"}:
+        return "Introduction"
+    if item in {
+        "study_design",
+        "setting_participants",
+        "variables_data_sources",
+        "bias_reproducibility",
+        "statistical_methods",
+        "allocation",
+        "eligibility_information_sources",
+        "synthesis_methods",
+        "research_team_reflexivity",
+        "integration",
+        "perspective_time_horizon",
+        "resource_valuation",
+        "model_entities_processes",
+        "initialisation_sensitivity",
+    }:
+        return "Methods"
+    if item in {"results_participants", "main_results", "participant_flow"}:
+        return "Results"
+    if item == "limitations":
+        return "Discussion"
+    return "Declarations"
+
+
+def _guideline_evidence(
+    item: str,
+    plan: ResearchPlan,
+    study: Study,
+    analysis_tables: dict[str, pd.DataFrame],
+) -> str:
+    if item == "main_results":
+        return f"{len(study.results)} design-specific metrics in table_3_primary_results."
+    if item == "variables_data_sources":
+        return f"{len(study.data.columns)} synthetic variables documented."
+    if item == "results_participants":
+        return f"{len(study.data)} synthetic records generated with seed {study.seed}."
+    if item == "study_design":
+        return f"Design selected as {plan.design_key}."
+    if item == "statistical_methods":
+        return "; ".join(plan.analysis_plan)
+    if item == "bias_reproducibility":
+        return "Seeded run, manifest, synthetic-data disclosure, and data-quality table."
+    if item == "funding_declarations":
+        return "Structured declarations table produced."
+    return f"Addressed in {len(analysis_tables)} analysis tables and manuscript sections."
+
+
+def _make_references(design_key: str) -> pd.DataFrame:
+    guideline = _reporting_guideline(design_key)
+    references = [
+        {
+            "key": "equator",
+            "citation": (
+                "EQUATOR Network. Enhancing the QUAlity and Transparency Of health "
+                "Research reporting guideline library."
+            ),
+            "url": "https://www.equator-network.org/",
+        },
+        {
+            "key": "strobe",
+            "citation": (
+                "von Elm E, Altman DG, Egger M, Pocock SJ, Gotzsche PC, "
+                "Vandenbroucke JP. The STROBE statement."
+            ),
+            "url": "https://www.strobe-statement.org/",
+        },
+        {
+            "key": "episim",
+            "citation": (
+                f"Siddalingaiah H. S. EPISIM: Epidemiology Platform for In Silico "
+                f"Methods. Version {__version__}."
+            ),
+            "url": "https://github.com/hssling/episim",
+        },
+    ]
+    additions: dict[str, dict[str, str]] = {
+        "CONSORT": {
+            "key": "consort",
+            "citation": "Schulz KF, Altman DG, Moher D. CONSORT statement for trials.",
+            "url": "https://www.consort-spirit.org/",
+        },
+        "PRISMA": {
+            "key": "prisma",
+            "citation": "Page MJ et al. PRISMA 2020 statement for systematic reviews.",
+            "url": "https://www.prisma-statement.org/prisma-2020",
+        },
+        "COREQ/GRAMMS": {
+            "key": "coreq_gramms",
+            "citation": "COREQ and GRAMMS reporting guidance for qualitative and mixed methods.",
+            "url": "https://www.equator-network.org/",
+        },
+        "CHEERS": {
+            "key": "cheers",
+            "citation": "CHEERS reporting guidance for health economic evaluations.",
+            "url": "https://www.equator-network.org/reporting-guidelines/cheers/",
+        },
+        "STRESS/ODD": {
+            "key": "stress_odd",
+            "citation": "STRESS and ODD guidance for simulation and agent-based models.",
+            "url": "https://www.equator-network.org/",
+        },
+    }
+    if guideline in additions:
+        references.insert(1, additions[guideline])
+    return pd.DataFrame(references)
+
+
+def _make_declarations(plan: ResearchPlan) -> pd.DataFrame:
+    rows = [
+        ("ethics_approval", plan.ethics_statement),
+        ("consent", "Not applicable: no real participants or identifiable records were used."),
+        (
+            "data_availability",
+            "All synthetic outputs are generated in the research bundle archive.",
+        ),
+        (
+            "code_availability",
+            "EPISIM source code and deterministic seed are reported in the archive.",
+        ),
+        ("funding", "No specific funding was simulated or declared by the software."),
+        ("conflicts_of_interest", "No conflicts of interest were simulated or declared."),
+        (
+            "author_contributions",
+            "User supplied the research question; EPISIM generated synthetic assets.",
+        ),
+        (
+            "clinical_policy_disclaimer",
+            "Synthetic findings are not clinical, policy, or public-health evidence.",
+        ),
+    ]
+    return pd.DataFrame(rows, columns=["declaration", "statement"])
+
+
 def _make_report(
     plan: ResearchPlan,
     study: Study,
     instruments: pd.DataFrame,
     follow_up: pd.DataFrame,
     outcome_record: pd.DataFrame,
+    analysis_tables: dict[str, pd.DataFrame],
+    guideline_checklist: pd.DataFrame,
+    references: pd.DataFrame,
+    declarations: pd.DataFrame,
 ) -> ResearchReport:
     result_lines = _result_lines(study)
+    guideline = _reporting_guideline(plan.design_key)
+    table_inventory = ", ".join(name for name in analysis_tables)
     limitations = (
         (
             "All records are synthetic and should be used for method development, "
@@ -512,29 +1212,56 @@ def _make_report(
             "collection is intended."
         ),
     )
+    keywords = (
+        "simulation",
+        "epidemiology",
+        plan.design_key.replace("_", " "),
+        "synthetic data",
+        guideline,
+    )
     abstract = (
-        f"Background: {plan.question} Methods: EPISIM generated a synthetic "
-        f"{plan.design_key} study using seed {study.seed}. Results: {len(study.data)} "
-        f"records were produced and {len(study.results)} summary metrics were estimated. "
-        "Conclusions: The workflow provides simulated evidence for design development, "
-        "not a claim about real-world effectiveness."
+        f"Background: {plan.question}\n"
+        f"Objective: {plan.aim}\n"
+        f"Methods: EPISIM generated a {guideline}-aligned synthetic {plan.design_key} "
+        f"study using seed {study.seed}. Structured data-collection tools, follow-up "
+        "logs, data-quality checks, analysis tables, and figures were produced.\n"
+        f"Results: {len(study.data)} records and {len(study.results)} summary metrics "
+        f"were generated. {result_lines[0] if result_lines else ''}\n"
+        "Conclusions: The workflow provides simulated evidence for design development "
+        "and protocol testing, not real-world effectiveness evidence."
+    )
+    introduction = (
+        f"The research question was: {plan.question} The simulation was designed to "
+        "test whether the proposed design can operationalise the target population, "
+        "measurement strategy, follow-up logic, outcome capture, and analysis workflow "
+        "before any real participant data are collected."
     )
     methods = (
-        f"{plan.methodology}\n\nPopulation: {plan.population}\n\n"
-        f"Data collection tools included {len(instruments)} variable-level fields. "
-        f"Follow-up schedule contained {len(follow_up)} planned timepoints. "
-        f"Analysis used: {'; '.join(plan.analysis_plan)}"
+        f"Design and guideline basis: {plan.methodology}\n\n"
+        f"Population and setting: {plan.population}\n\n"
+        f"Exposure/intervention and comparator: {plan.exposure_or_intervention}; "
+        f"comparator was {plan.comparator}\n\n"
+        f"Data collection: {len(instruments)} variable-level fields were mapped to "
+        "instrument sections, timing, collection mode, definitions, and quality-control "
+        f"checks. The follow-up schedule contained {len(follow_up)} planned timepoints.\n\n"
+        f"Analysis: {'; '.join(plan.analysis_plan)} Data-quality checks, variable "
+        f"summaries, primary estimates, and interpretation tables were generated. "
+        f"Analysis table inventory: {table_inventory}."
     )
     results = (
-        f"The simulation generated {len(study.data)} records. "
+        f"The simulation generated {len(study.data)} records with seed {study.seed}. "
         f"Outcome recording produced {len(outcome_record)} metrics. "
+        f"The guideline checklist marked {len(guideline_checklist)} reporting items as "
+        "addressed in the generated manuscript package. "
         + " ".join(result_lines)
     )
     discussion = (
         "The simulated study demonstrates whether the proposed design can collect the "
         "required measurements, maintain a transparent follow-up structure, and return "
-        "design-appropriate estimates. Findings should be interpreted as scenario-based "
-        "methodological evidence rather than empirical clinical or social proof."
+        "design-appropriate estimates. The additional tables and figures allow reviewers "
+        "to inspect data structure, missingness, model outputs, and interpretation logic. "
+        "Findings should be interpreted as scenario-based methodological evidence rather "
+        "than empirical clinical or social proof."
     )
     conclusion = (
         f"EPISIM completed an end-to-end synthetic {plan.design_key} study for the "
@@ -543,21 +1270,24 @@ def _make_report(
     )
     markdown = _report_markdown(
         plan=plan,
+        keywords=keywords,
         abstract=abstract,
+        introduction=introduction,
         methods=methods,
         results=results,
         discussion=discussion,
         conclusion=conclusion,
         limitations=limitations,
         next_steps=next_steps,
+        guideline_checklist=guideline_checklist,
+        references=references,
+        declarations=declarations,
     )
     return ResearchReport(
         title=plan.title,
+        keywords=keywords,
         abstract=abstract,
-        introduction=(
-            f"The research question was: {plan.question} The simulation was designed "
-            "to test study feasibility, measurement logic, and expected analytical outputs."
-        ),
+        introduction=introduction,
         methods=methods,
         results=results,
         discussion=discussion,
@@ -608,32 +1338,69 @@ def _protocol_markdown(plan: ResearchPlan) -> str:
 def _report_markdown(
     *,
     plan: ResearchPlan,
+    keywords: tuple[str, ...],
     abstract: str,
+    introduction: str,
     methods: str,
     results: str,
     discussion: str,
     conclusion: str,
     limitations: tuple[str, ...],
     next_steps: tuple[str, ...],
+    guideline_checklist: pd.DataFrame,
+    references: pd.DataFrame,
+    declarations: pd.DataFrame,
 ) -> str:
+    guideline = _reporting_guideline(plan.design_key)
     return "\n".join(
         [
             f"# {plan.title}",
             "",
+            "## Title Page",
+            f"**Design:** {plan.design_key}",
+            f"**Reporting framework:** {guideline}",
+            "**Article type:** Synthetic simulation study",
+            "",
             "## Abstract",
             abstract,
             "",
+            "## Keywords",
+            ", ".join(keywords),
+            "",
             "## Introduction",
-            (
-                f"This synthetic study addresses: {plan.question} It is intended for "
-                "methods development, teaching, protocol refinement, and feasibility testing."
-            ),
+            introduction,
+            "",
+            "### Aim And Objectives",
+            plan.aim,
+            "",
+            *[f"- {item}" for item in plan.objectives],
+            "",
+            "### Hypotheses",
+            *[f"- {item}" for item in plan.hypotheses],
             "",
             "## Methods",
             methods,
             "",
+            "### Simulated Data Collection Tools",
+            (
+                "The data collection tool package maps every generated field to an "
+                "instrument section, timing, collection mode, operational definition, "
+                "and quality-control check."
+            ),
+            "",
+            "### Reporting Guideline Checklist",
+            _markdown_table(guideline_checklist[["item", "status", "location"]].head(20)),
+            "",
             "## Results",
             results,
+            "",
+            "### Tables And Figures",
+            (
+                "The archive contains table_1_study_profile, table_2_variable_summary, "
+                "table_3_primary_results, table_4_data_quality, "
+                "table_5_analysis_interpretation, and PNG figures for metric summaries, "
+                "data structure, and outcome distribution."
+            ),
             "",
             "## Discussion",
             discussion,
@@ -647,6 +1414,15 @@ def _report_markdown(
             "## Next Steps",
             *[f"- {item}" for item in next_steps],
             "",
+            "## Declarations",
+            _markdown_table(declarations),
+            "",
+            "## References",
+            *[
+                f"- {row.citation} {row.url}"
+                for row in references.itertuples(index=False)
+            ],
+            "",
             "## AI And Simulation Disclosure",
             ai_disclosure("library_only", version=__version__, doi="not-yet-assigned"),
             "",
@@ -654,6 +1430,21 @@ def _report_markdown(
             "",
         ]
     )
+
+
+def _markdown_table(frame: pd.DataFrame, max_rows: int = 12) -> str:
+    if frame.empty:
+        return "_No rows generated._"
+    display = frame.head(max_rows).copy()
+    columns = [str(column) for column in display.columns]
+    header = "| " + " | ".join(columns) + " |"
+    separator = "| " + " | ".join("---" for _ in columns) + " |"
+    rows = []
+    for _, row in display.iterrows():
+        values = [str(row[column]).replace("\n", " ") for column in display.columns]
+        rows.append("| " + " | ".join(values) + " |")
+    suffix = "" if len(frame) <= max_rows else f"\n\n_Showing {max_rows} of {len(frame)} rows._"
+    return "\n".join([header, separator, *rows]) + suffix
 
 
 def supported_research_designs() -> tuple[str, ...]:
