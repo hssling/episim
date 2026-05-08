@@ -2,6 +2,16 @@
 
 All notable changes to EPISIM are documented here. Format: Keep-a-Changelog. Versioning: SemVer.
 
+## [v0.12.1-alpha] - 2026-05-08
+
+### Fixed
+
+- Fixed Hugging Face research-bundle export failure when design results include
+  list-valued intervals such as confidence intervals. SQLite export now
+  serializes list, tuple, and dictionary values safely.
+- Added a regression test for the default RCT research archive path used by the
+  Space.
+
 ## [v0.12.0-alpha] - 2026-05-08
 
 ### Added

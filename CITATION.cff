@@ -6,7 +6,7 @@ authors:
     given-names: "H. S."
     email: "hssling@gmail.com"
     affiliation: "Department of Community Medicine, Shridevi Institute of Medical Sciences and Research Hospital, Tumakuru, Karnataka, India"
-version: "0.12.0a1"
+version: "0.12.1a1"
 date-released: "2026-05-08"
 license: MIT
 repository-code: "https://github.com/hssling/episim"

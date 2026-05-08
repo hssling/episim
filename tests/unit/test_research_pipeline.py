@@ -109,6 +109,21 @@ def test_research_bundle_archive_writes_complete_outputs(tmp_path) -> None:
     assert bundle.plan.design_key == "qualitative_mixed_methods"
 
 
+def test_default_rct_research_archive_handles_interval_results(tmp_path) -> None:
+    bundle = conduct_research(
+        "Does a randomized lifestyle intervention reduce frailty in community elders?",
+        seed_value=789,
+        n=240,
+        sensitivity_runs=2,
+    )
+    out = bundle.archive(tmp_path / "rct_research")
+    assert (out / "synthetic_research_database.sqlite").exists()
+    with sqlite3.connect(out / "synthetic_research_database.sqlite") as con:
+        rows = con.execute("select metric, value from outcome_record").fetchall()
+    assert rows
+    assert any(metric.endswith("_ci") for metric, _ in rows)
+
+
 def test_supported_research_designs_matches_registry() -> None:
     designs = supported_research_designs()
     assert "cross_sectional" in designs

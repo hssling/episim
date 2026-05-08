@@ -1299,40 +1299,37 @@ def _write_distribution_figure(data: pd.DataFrame, path: Path) -> None:
 
 def _write_sqlite_database(bundle: ResearchBundle, path: Path) -> None:
     with sqlite3.connect(path) as con:
-        bundle.collected_data.to_sql(
-            "collected_synthetic_data", con, index=False, if_exists="replace"
-        )
-        bundle.cleaned_data.to_sql(
-            "cleaned_analysis_dataset", con, index=False, if_exists="replace"
-        )
-        bundle.cleaning_log.to_sql("data_cleaning_log", con, index=False, if_exists="replace")
-        bundle.analysis_steps_record.to_sql(
-            "analysis_steps", con, index=False, if_exists="replace"
-        )
-        bundle.cleaned_data.to_sql("synthetic_observations", con, index=False, if_exists="replace")
-        bundle.instruments.to_sql("data_collection_tools", con, index=False, if_exists="replace")
-        bundle.database_dictionary.to_sql(
-            "database_dictionary", con, index=False, if_exists="replace"
-        )
-        bundle.collection_events.to_sql("collection_events", con, index=False, if_exists="replace")
-        bundle.follow_up_schedule.to_sql(
-            "follow_up_schedule", con, index=False, if_exists="replace"
-        )
-        bundle.outcome_record.to_sql("outcome_record", con, index=False, if_exists="replace")
-        bundle.realism_audit.to_sql("realism_audit", con, index=False, if_exists="replace")
-        bundle.sensitivity_analysis.to_sql(
-            "sensitivity_analysis", con, index=False, if_exists="replace"
-        )
-        bundle.readiness_checklist.to_sql(
-            "readiness_checklist", con, index=False, if_exists="replace"
-        )
-        bundle.guideline_checklist.to_sql(
-            "guideline_checklist", con, index=False, if_exists="replace"
-        )
-        bundle.references.to_sql("references", con, index=False, if_exists="replace")
-        bundle.declarations.to_sql("declarations", con, index=False, if_exists="replace")
+        _to_sqlite(bundle.collected_data, "collected_synthetic_data", con)
+        _to_sqlite(bundle.cleaned_data, "cleaned_analysis_dataset", con)
+        _to_sqlite(bundle.cleaning_log, "data_cleaning_log", con)
+        _to_sqlite(bundle.analysis_steps_record, "analysis_steps", con)
+        _to_sqlite(bundle.cleaned_data, "synthetic_observations", con)
+        _to_sqlite(bundle.instruments, "data_collection_tools", con)
+        _to_sqlite(bundle.database_dictionary, "database_dictionary", con)
+        _to_sqlite(bundle.collection_events, "collection_events", con)
+        _to_sqlite(bundle.follow_up_schedule, "follow_up_schedule", con)
+        _to_sqlite(bundle.outcome_record, "outcome_record", con)
+        _to_sqlite(bundle.realism_audit, "realism_audit", con)
+        _to_sqlite(bundle.sensitivity_analysis, "sensitivity_analysis", con)
+        _to_sqlite(bundle.readiness_checklist, "readiness_checklist", con)
+        _to_sqlite(bundle.guideline_checklist, "guideline_checklist", con)
+        _to_sqlite(bundle.references, "references", con)
+        _to_sqlite(bundle.declarations, "declarations", con)
         for name, frame in bundle.analysis_tables.items():
-            frame.to_sql(name, con, index=False, if_exists="replace")
+            _to_sqlite(frame, name, con)
+
+
+def _to_sqlite(frame: pd.DataFrame, table_name: str, con: sqlite3.Connection) -> None:
+    safe = frame.map(_sqlite_value)
+    safe.to_sql(table_name, con, index=False, if_exists="replace")
+
+
+def _sqlite_value(value: Any) -> Any:
+    if isinstance(value, list | tuple | dict):
+        return json.dumps(value, default=str)
+    if pd.isna(value):
+        return None
+    return value
 
 
 def _make_guideline_checklist(
