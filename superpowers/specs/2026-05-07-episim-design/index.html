@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://hssling.github.io/episim/superpowers/specs/2026-05-07-episim-design/" />
+      <link rel="shortcut icon" href="../../../img/favicon.ico" />
+    <title>EPISIM — Epidemiology Platform for In Silico Methods - EPISIM</title>
+    <link rel="stylesheet" href="../../../css/theme.css" />
+    <link rel="stylesheet" href="../../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../../../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "EPISIM \u2014 Epidemiology Platform for In Silico Methods";
+        var mkdocs_page_input_path = "superpowers/specs/2026-05-07-episim-design.md";
+        var mkdocs_page_url = "/episim/superpowers/specs/2026-05-07-episim-design/";
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../../.." class="icon icon-home"> EPISIM
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../..">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../../getting-started/">Getting started</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../../lab/">Lab surface</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../../deployment/">Deployment</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">API</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../../api/core/">Core</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../../api/designs/">Designs</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../../api/research/">Research</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../..">EPISIM</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../.." class="icon icon-home" aria-label="Docs"></a></li>
+      <li class="breadcrumb-item active">EPISIM — Epidemiology Platform for In Silico Methods</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/hssling/episim/edit/master/docs/superpowers/specs/2026-05-07-episim-design.md" class="icon icon-github"> Edit on GitHub</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="episim-epidemiology-platform-for-in-silico-methods">EPISIM — Epidemiology Platform for In Silico Methods</h1>
+<p><strong>Design specification.</strong>
+<strong>Version:</strong> 1.0 — 7 May 2026.
+<strong>Author:</strong> Dr Siddalingaiah H. S. (with frontier-AI assistance, fully disclosed).
+<strong>Status:</strong> Approved through Section 6 of brainstorming; pending user review of this spec; then implementation-plan stage.</p>
+<hr />
+<h2 id="1-one-line-summary">1. One-line summary</h2>
+<p>EPISIM is an open-source Python platform for <strong>in silico simulation of epidemiological and allied-science research designs</strong>, deployed across <strong>seven surfaces</strong> from one source-of-truth: (i) a GitHub repository, (ii) a pip-installable library (<code>pip install episim</code>), (iii) a curated library of 18 study-design notebooks with deterministic outputs and auto-generated reporting-checklist artefacts, (iv) a Hugging Face Spaces web app, (v) Kaggle-mirrored notebooks, (vi) a Zenodo-DOI'd citable release on every tag, and (vii) a GHCR Docker image and MkDocs documentation site. It grows in three phases: (1) teaching/methods-demonstration lab, (2) pre-registration / methods-research lab, (3) natural-language generative simulation engine.</p>
+<h2 id="2-goals-and-non-goals">2. Goals and non-goals</h2>
+<h3 id="goals">Goals</h3>
+<ul>
+<li>Enable any researcher to specify and run a deterministic simulation of any of 18 (initially) study designs in &lt; 30 lines of code or in a web UI.</li>
+<li>Make every simulation output a <strong>citable, reviewable, publication-grade artefact</strong> — deterministic seed, SHA-256-manifested outputs, auto-filled reporting checklist (STROBE / CONSORT / TRIPOD-AI / STRESS / PRISMA / GRIPP2 / SAGER), and a methods-narrative auto-draft.</li>
+<li>Build the platform across five surfaces (GitHub, PyPI, HF Spaces, Kaggle, Zenodo, MkDocs, GHCR Docker) from one source-of-truth without duplicated maintenance.</li>
+<li>Be <strong>demonstrably useful from week 2</strong> (combined HF Space live with 1–2 notebooks) and <strong>fully shipped as v0.8 with JOSS submission by week 8</strong>.</li>
+<li>Lay clean architectural seams for phase 2 (pre-registration mode) and phase 3 (LLM-mediated natural-language interface) without rework.</li>
+<li>Extend, by month 9, beyond medicine into educational, economic, psychological, sociological/qualitative research designs — fulfilling the "allied sciences and humanities" remit.</li>
+</ul>
+<h3 id="non-goals-v0x">Non-goals (v0.x)</h3>
+<ul>
+<li>Not a frontier-AI agent that reasons about epidemiology autonomously (that arrives in phase 3).</li>
+<li>Not a wet-lab data-analysis platform (no real-data ingest from EHRs / surveys; users bring their own).</li>
+<li>Not a competitor to broad ML platforms (PyMC, Stan); EPISIM specifically targets <em>study-design simulation</em> with reporting-checklist outputs.</li>
+<li>Not a meta-analysis or systematic-review automation tool (although a meta-analysis simulation notebook is included).</li>
+</ul>
+<h2 id="3-architecture">3. Architecture</h2>
+<h3 id="31-repository-layout">3.1 Repository layout</h3>
+<div class="highlight"><pre><span></span><code>EPISIM/                                 ← GitHub source-of-truth
+├── episim/                             ← pip-installable Python package
+│   ├── __init__.py
+│   ├── core/                           ← shared primitives
+│   │   ├── populations.py              ← cohort/population generators
+│   │   ├── exposures.py                ← exposure assignment
+│   │   ├── outcomes.py                 ← outcome models (logistic / Cox / count / continuous)
+│   │   ├── confounding.py              ← confounder + DAG utilities
+│   │   ├── bias.py                     ← measurement error, ascertainment, selection
+│   │   ├── attrition.py                ← MCAR / MAR / MNAR drop-out
+│   │   └── reproducibility.py          ← seeded RNG, SHA-256 manifest, Study object
+│   ├── designs/                        ← 18 study-design modules
+│   │   ├── cross_sectional.py
+│   │   ├── case_control.py
+│   │   ├── cohort.py
+│   │   ├── rct_parallel.py
+│   │   ├── rct_cluster.py
+│   │   ├── stepped_wedge.py
+│   │   ├── ecological.py               ← PEAI lives here
+│   │   ├── interrupted_ts.py
+│   │   ├── regression_discontinuity.py
+│   │   ├── instrumental_variables.py
+│   │   ├── propensity_score.py
+│   │   ├── survival_cox.py
+│   │   ├── meta_analysis.py
+│   │   ├── agent_based_seir.py
+│   │   ├── microsimulation_lifetable.py
+│   │   ├── markov_decision.py
+│   │   ├── network_contagion.py
+│   │   └── qualitative_mixed_methods.py
+│   ├── analytics/
+│   │   ├── estimators.py               ← point + bootstrap CI (percentile + BCa)
+│   │   ├── multiple_testing.py         ← BH-FDR, Bonferroni
+│   │   ├── calibration.py              ← decile plot + slope + in-the-large
+│   │   ├── discrimination.py           ← AUROC, NRI, decision-curve
+│   │   ├── fairness.py                 ← equalised odds, predictive parity, recalibration
+│   │   ├── transportability.py         ← Pearl-Bareinboim style
+│   │   └── sensitivity.py              ← E-value, tipping-point
+│   ├── reporting/
+│   │   ├── strobe.py
+│   │   ├── consort.py
+│   │   ├── tripod_ai.py
+│   │   ├── stress.py
+│   │   ├── prisma.py
+│   │   ├── gripp2.py
+│   │   ├── sager.py
+│   │   ├── narrative.py                ← deterministic methods-narrative builder
+│   │   ├── manifest.py                 ← reproducibility manifest writer
+│   │   ├── ai_disclosure.py            ← two-flavour AI-disclosure block
+│   │   └── checklists/                 ← YAML files (community-contributable)
+│   │       ├── strobe.yaml
+│   │       ├── consort.yaml
+│   │       ├── tripod_ai.yaml
+│   │       ├── stress.yaml
+│   │       ├── prisma.yaml
+│   │       ├── gripp2.yaml
+│   │       └── sager.yaml
+│   └── viz/                            ← shared figure templates
+│       ├── consort_flow.py
+│       ├── forest.py
+│       ├── calibration.py
+│       ├── fairness.py
+│       └── dag.py
+├── notebooks/                          ← 18 thin notebooks
+│   ├── 01_cross_sectional.ipynb
+│   ├── 02_case_control.ipynb
+│   ├── 03_cohort.ipynb
+│   ├── 04_rct_parallel.ipynb
+│   ├── 05_rct_cluster.ipynb
+│   ├── 06_stepped_wedge.ipynb
+│   ├── 07_ecological.ipynb             ← PEAI notebook
+│   ├── 08_interrupted_ts.ipynb
+│   ├── 09_regression_discontinuity.ipynb
+│   ├── 10_instrumental_variables.ipynb
+│   ├── 11_propensity_score.ipynb
+│   ├── 12_survival_cox.ipynb
+│   ├── 13_meta_analysis.ipynb
+│   ├── 14_agent_based_seir.ipynb
+│   ├── 15_microsimulation_lifetable.ipynb
+│   ├── 16_markov_decision.ipynb
+│   ├── 17_network_contagion.ipynb
+│   └── 18_qualitative_mixed_methods.ipynb
+├── apps/                               ← combined HF Space (v0.1 → v0.4) + per-design (v0.5+)
+│   ├── episim_lab/                     ← combined Gradio app with 18-design dropdown
+│   └── per_design/                     ← per-design Gradio apps from v0.5
+├── tests/                              ← pytest suite (unit + property + reproducibility + nbmake)
+├── docs/                               ← MkDocs source → GitHub Pages
+├── .github/workflows/
+│   ├── ci.yml                          ← lint + tests + nbmake on PR
+│   ├── release.yml                     ← PyPI + Docker + Zenodo on tag
+│   ├── docs.yml                        ← MkDocs → GH Pages on main
+│   ├── hf-sync.yml                     ← HF Spaces app sync on main
+│   └── kaggle-sync.yml                 ← Kaggle mirror on tag
+├── pyproject.toml
+├── requirements.lock
+├── Dockerfile
+├── README.md
+├── CITATION.cff
+├── CHANGELOG.md
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
+└── LICENSE                             ← MIT (code) + CC-BY 4.0 (checklists/figures)
+</code></pre></div>
+<h3 id="32-the-five-surface-deployment">3.2 The five-surface deployment</h3>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>Audience</th>
+<th>Artefact</th>
+<th>Trigger</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GitHub <code>hssling/episim</code></td>
+<td>Methodologists, contributors</td>
+<td>Source + notebooks + docs</td>
+<td><code>git push</code> (canonical)</td>
+</tr>
+<tr>
+<td>PyPI <code>episim</code></td>
+<td>Library users</td>
+<td>Python package</td>
+<td>CI on <code>v*</code> tag</td>
+</tr>
+<tr>
+<td>HF Spaces <code>episim-lab</code></td>
+<td>Non-technical users</td>
+<td>Gradio web app</td>
+<td>CI on merge to main</td>
+</tr>
+<tr>
+<td>Kaggle <code>episim/&lt;design&gt;</code></td>
+<td>Learners, MD/MPH students</td>
+<td>Notebook mirrors</td>
+<td>CI on <code>v*</code> tag</td>
+</tr>
+<tr>
+<td>Zenodo</td>
+<td>Citers</td>
+<td>DOI'd source archive</td>
+<td>GH-Zenodo on <code>v*</code> tag</td>
+</tr>
+<tr>
+<td>MkDocs (GH Pages)</td>
+<td>Doc readers</td>
+<td>API + tutorial site</td>
+<td>CI on merge to main</td>
+</tr>
+<tr>
+<td>GHCR Docker <code>episim:v*</code></td>
+<td>Reproducibility-critical users</td>
+<td>Pinned environment image</td>
+<td>CI on <code>v*</code> tag</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-primitive-api-contract">4. Primitive API contract</h2>
+<h3 id="41-style">4.1 Style</h3>
+<ul>
+<li><strong>R-style formulas</strong> parsed via <code>formulaic</code>. Users write <code>"y ~ exposure + age + sex + age:sex"</code>.</li>
+<li><strong>Imperative pipeline.</strong> Each function returns a new <code>pandas.DataFrame</code> plus a <code>Study</code> metadata object.</li>
+<li><strong>Thin OO wrapper</strong> in <code>episim.designs.Builder</code> so each method becomes a Gradio widget for app generation.</li>
+<li><strong>Pure functions, no global state.</strong> Every randomness driven by an explicit <code>rng</code> argument or via the <code>seed()</code> context manager.</li>
+<li><strong>Universal data type:</strong> <code>pandas.DataFrame</code> with conventional column names: <code>id</code>, <code>exposure</code>, <code>outcome</code>, plus user-named covariates.</li>
+<li><strong>Failures explicit.</strong> Underpowered designs return <code>power_warning=True</code>; never silent.</li>
+</ul>
+<h3 id="42-canonical-user-facing-example">4.2 Canonical user-facing example</h3>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">episim.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">populations</span><span class="p">,</span> <span class="n">outcomes</span><span class="p">,</span> <span class="n">bias</span><span class="p">,</span> <span class="n">reproducibility</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">episim.designs</span><span class="w"> </span><span class="kn">import</span> <span class="n">case_control</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">episim.analytics</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimators</span><span class="p">,</span> <span class="n">fairness</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">episim.reporting</span><span class="w"> </span><span class="kn">import</span> <span class="n">strobe</span><span class="p">,</span> <span class="n">narrative</span><span class="p">,</span> <span class="n">manifest</span><span class="p">,</span> <span class="n">ai_disclosure</span>
+
+<span class="k">with</span> <span class="n">reproducibility</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">20260507</span><span class="p">)</span> <span class="k">as</span> <span class="n">rng</span><span class="p">:</span>
+    <span class="n">pop</span> <span class="o">=</span> <span class="n">populations</span><span class="o">.</span><span class="n">cohort</span><span class="p">(</span><span class="n">n</span><span class="o">=</span><span class="mi">10_000</span><span class="p">,</span> <span class="n">age</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;normal&quot;</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="n">sex</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;bernoulli&quot;</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">),</span> <span class="n">rng</span><span class="o">=</span><span class="n">rng</span><span class="p">)</span>
+    <span class="n">pop</span> <span class="o">=</span> <span class="n">outcomes</span><span class="o">.</span><span class="n">logistic</span><span class="p">(</span><span class="n">pop</span><span class="p">,</span> <span class="s2">&quot;y ~ exposure + age + sex&quot;</span><span class="p">,</span> <span class="n">betas</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;exposure&quot;</span><span class="p">:</span> <span class="mf">0.6</span><span class="p">,</span> <span class="s2">&quot;age&quot;</span><span class="p">:</span> <span class="mf">0.04</span><span class="p">,</span> <span class="s2">&quot;sex&quot;</span><span class="p">:</span> <span class="mf">0.2</span><span class="p">})</span>
+    <span class="n">pop</span> <span class="o">=</span> <span class="n">bias</span><span class="o">.</span><span class="n">measurement_error</span><span class="p">(</span><span class="n">pop</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="s2">&quot;exposure&quot;</span><span class="p">,</span> <span class="n">sd</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">rng</span><span class="o">=</span><span class="n">rng</span><span class="p">)</span>
+
+    <span class="n">study</span> <span class="o">=</span> <span class="n">case_control</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">pop</span><span class="p">,</span> <span class="n">n_cases</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">n_controls</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">matched_on</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;age&quot;</span><span class="p">,</span> <span class="s2">&quot;sex&quot;</span><span class="p">],</span> <span class="n">rng</span><span class="o">=</span><span class="n">rng</span><span class="p">)</span>
+    <span class="n">or_est</span> <span class="o">=</span> <span class="n">estimators</span><span class="o">.</span><span class="n">odds_ratio</span><span class="p">(</span><span class="n">study</span><span class="p">,</span> <span class="n">with_ci</span><span class="o">=</span><span class="s2">&quot;bca&quot;</span><span class="p">)</span>
+    <span class="n">fair</span> <span class="o">=</span> <span class="n">fairness</span><span class="o">.</span><span class="n">equalised_odds</span><span class="p">(</span><span class="n">study</span><span class="p">,</span> <span class="n">by</span><span class="o">=</span><span class="s2">&quot;sex&quot;</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="mf">0.10</span><span class="p">)</span>
+
+    <span class="n">strobe</span><span class="o">.</span><span class="n">checklist</span><span class="p">(</span><span class="n">study</span><span class="p">)</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">&quot;strobe.docx&quot;</span><span class="p">)</span>
+    <span class="n">narrative</span><span class="o">.</span><span class="n">draft</span><span class="p">(</span><span class="n">study</span><span class="p">)</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">&quot;methods.md&quot;</span><span class="p">)</span>
+    <span class="n">ai_disclosure</span><span class="o">.</span><span class="n">block</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;library_only&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">&quot;ai_disclosure.md&quot;</span><span class="p">)</span>
+    <span class="n">manifest</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">study</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="s2">&quot;run/&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="43-the-study-metadata-object">4.3 The <code>Study</code> metadata object</h3>
+<p>Every design module returns <code>(data: DataFrame, study: Study)</code>. <code>Study</code> carries: seed, EPISIM version, design name, parameter dict, indicator-formula spec, SHA-256 of <code>data</code>, timestamp, citation block. <code>Study.archive(path)</code> writes a complete reproducible bundle.</p>
+<h2 id="5-reproducibility-and-testing-contract">5. Reproducibility and testing contract</h2>
+<h3 id="51-reproducibility">5.1 Reproducibility</h3>
+<ul>
+<li>Every public function takes an explicit <code>rng: np.random.Generator</code> or uses the active <code>seed()</code> context.</li>
+<li>Every output bundle includes <code>manifest.json</code> with seed, library version, parameter dict, SHA-256 of every file.</li>
+<li>Pinned dependencies in both <code>pyproject.toml</code> (declarative) and <code>requirements.lock</code> (deterministic).</li>
+<li>Docker image per release on GHCR for full environment reproducibility.</li>
+</ul>
+<h3 id="52-testing">5.2 Testing</h3>
+<ul>
+<li><strong>Unit tests</strong> in <code>tests/unit/</code>. Target ≥ 90 % line coverage of <code>episim/core/</code>. Coverage gate enforced in CI.</li>
+<li><strong>Property tests</strong> via <code>hypothesis</code>. Examples: a parallel-arm RCT with no treatment effect should produce 95 % CIs containing 0 in ≥ 94 % of seeds across 1000 runs.</li>
+<li><strong>Reproducibility tests</strong> in <code>tests/repro/</code>: same seed → same SHA-256 of every output.</li>
+<li><strong>Notebook smoke tests</strong> via <code>nbmake</code>: every notebook in <code>notebooks/</code> runs end-to-end in CI; failures block merge.</li>
+</ul>
+<h3 id="53-cicd-github-actions">5.3 CI/CD (GitHub Actions)</h3>
+<ul>
+<li><strong><code>ci.yml</code> (on PR):</strong> <code>ruff</code> + <code>mypy --strict</code> + <code>pytest --cov</code> (≥ 90 % gate) + <code>nbmake notebooks/</code>.</li>
+<li><strong><code>docs.yml</code> (on merge to main):</strong> rebuild MkDocs, deploy to GH Pages.</li>
+<li><strong><code>hf-sync.yml</code> (on merge to main):</strong> push apps/ to corresponding HF Spaces.</li>
+<li><strong><code>release.yml</code> (on <code>v*</code> tag):</strong> build + publish to PyPI; build + push Docker image to GHCR; create GitHub release; trigger Zenodo DOI.</li>
+<li><strong><code>kaggle-sync.yml</code> (on <code>v*</code> tag):</strong> push notebooks via Kaggle API.</li>
+</ul>
+<h3 id="54-versioning">5.4 Versioning</h3>
+<p>Semantic versioning. v0.x = pre-stable (API may break in minor releases). v1.0 when API frozen, all 18 notebooks shipped, ≥ 1 external feedback round complete.</p>
+<h2 id="6-reporting-ai-disclosure-layer">6. Reporting + AI-disclosure layer</h2>
+<h3 id="61-five-artefacts-per-study">6.1 Five artefacts per Study</h3>
+<ol>
+<li><strong>Reporting-guideline checklist</strong> (STROBE / CONSORT / TRIPOD-AI / STRESS / PRISMA / GRIPP2 / SAGER as applicable to the design). Source: YAML files in <code>episim/reporting/checklists/</code> (CC-BY 4.0; community-contributable). Output: filled-in <code>.md</code> and <code>.docx</code>.</li>
+<li><strong>Methods narrative auto-draft.</strong> Deterministic prose generated from <code>Study</code> metadata; written into the conventional Methods-section structure for the design. No LLM in v0.1; LLM-augmented narrative in phase 3.</li>
+<li><strong>Figure pack.</strong> Standardised matplotlib figures (CONSORT flow, forest plot, calibration plot, fairness audit, DAG) auto-rendered from <code>Study</code> metadata. Recognisable EPISIM look across all 18 notebooks.</li>
+<li><strong>Reproducibility manifest</strong> — <code>manifest.json</code> with seed, version, parameter dict, SHA-256 of every output, EPISIM citation, Zenodo DOI of the package release used.</li>
+<li><strong>AI-disclosure block</strong> — two flavours, dropping straight into a manuscript:</li>
+<li><code>mode="library_only"</code>: "Simulation conducted using EPISIM v0.x [DOI]. No generative-AI was used in design, analysis, or interpretation."</li>
+<li><code>mode="generative"</code>: "Simulation parameters were specified in natural language and parsed by EPISIM's generative layer (LLM: Claude Opus 4.7 via LiteLLM). All design, parameter, and interpretation decisions were verified by the author against the deterministic re-run from the saved seed."</li>
+</ol>
+<h3 id="62-licensing-within-the-reporting-layer">6.2 Licensing within the reporting layer</h3>
+<ul>
+<li>Code (Python in <code>episim/</code>): <strong>MIT</strong>.</li>
+<li>YAML checklists and figure templates: <strong>CC-BY 4.0</strong> so community PRs of guideline updates retain author attribution.</li>
+</ul>
+<h2 id="7-phase-roadmap">7. Phase roadmap</h2>
+<h3 id="71-phase-1-teachingmethods-demonstration-lab-weeks-18">7.1 Phase 1 — Teaching/methods-demonstration lab (Weeks 1–8)</h3>
+<table>
+<thead>
+<tr>
+<th>Release</th>
+<th>Week</th>
+<th>Contents</th>
+<th>Visible on</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v0.1.0-alpha</td>
+<td>1</td>
+<td>Repo skeleton; <code>episim.core</code> primitives; CI; docs site live; notebook 1 (cross-sectional)</td>
+<td>GitHub, MkDocs</td>
+</tr>
+<tr>
+<td>v0.2</td>
+<td>2</td>
+<td>+ 2 notebooks (cohort, RCT parallel); combined HF Space live</td>
+<td>+ HF Spaces</td>
+</tr>
+<tr>
+<td>v0.3</td>
+<td>3</td>
+<td>+ 3 notebooks (case-control, RCT cluster, ecological — <em>PEAI port</em>)</td>
+<td></td>
+</tr>
+<tr>
+<td>v0.4</td>
+<td>4</td>
+<td>+ 3 notebooks (stepped-wedge, ITS, regression discontinuity)</td>
+<td></td>
+</tr>
+<tr>
+<td>v0.5</td>
+<td>5</td>
+<td>+ 3 notebooks (IV, propensity-score, survival/Cox); per-design HF Spaces start</td>
+<td>per-design HF Spaces</td>
+</tr>
+<tr>
+<td>v0.6</td>
+<td>6</td>
+<td>+ 3 notebooks (meta-analysis, agent-based SEIR, microsimulation life-table)</td>
+<td></td>
+</tr>
+<tr>
+<td>v0.7</td>
+<td>7</td>
+<td>+ 2 notebooks (Markov decision-analytic, network/contagion)</td>
+<td></td>
+</tr>
+<tr>
+<td>v0.8</td>
+<td>8</td>
+<td>+ 1 notebook (qualitative/mixed-methods power); polish; PyPI; Kaggle; Zenodo DOI; Docker; <strong>JOSS submission</strong></td>
+<td>All seven surfaces</td>
+</tr>
+</tbody>
+</table>
+<h3 id="72-phase-2-methods-research-pre-registration-lab-weeks-914">7.2 Phase 2 — Methods-research / pre-registration lab (Weeks 9–14)</h3>
+<table>
+<thead>
+<tr>
+<th>Release</th>
+<th>Approx. timing</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v0.9</td>
+<td>Weeks 9–12</td>
+<td>"Pre-registration mode": investigator describes a planned real-world study; EPISIM runs power + bias-sensitivity + design-comparison + fairness audit; emits a <em>pre-registration package</em> (analysis plan + simulation evidence) suitable for OSF deposition.</td>
+</tr>
+<tr>
+<td>v1.0</td>
+<td>Week 14</td>
+<td>API freeze; v1.0 release; SMMR/Stat Med methods paper.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="73-phase-3-generative-ai-simulation-engine-months-46">7.3 Phase 3 — Generative-AI simulation engine (Months 4–6)</h3>
+<table>
+<thead>
+<tr>
+<th>Release</th>
+<th>Timing</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v1.x-genai</td>
+<td>Months 4–6</td>
+<td>Natural-language interface: prose → LLM-extracted parameters → EPISIM <code>Study</code> spec → deterministic simulation → manuscript draft. Audit trail: every LLM call logged; deterministic re-run from parsed spec is byte-identical. LLM provider abstracted via <strong>LiteLLM</strong>.</td>
+</tr>
+<tr>
+<td>v2.0</td>
+<td>Month 6</td>
+<td>Multi-agent peer-review-personae (extending the technique used for our own NMJI manuscript): the same LLM, prompted as different reviewer personae, produces independent critique that the user can act on before submission.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="74-phase-4-beyond-medicine-months-79">7.4 Phase 4 — Beyond medicine (Months 7–9)</h3>
+<table>
+<thead>
+<tr>
+<th>Release</th>
+<th>Timing</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v2.x</td>
+<td>Months 7–9</td>
+<td>Notebook packs for educational research designs (RCT in classrooms, cluster-stepped-wedge in school districts), economics/policy (synthetic control, difference-in-differences), psychology (within-subjects, IRT simulation), sociology/qualitative (Q-methodology, content-analysis power).</td>
+</tr>
+</tbody>
+</table>
+<h2 id="8-risks-and-mitigations">8. Risks and mitigations</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>18-notebook scope underestimates author time</td>
+<td>High</td>
+<td>High</td>
+<td>Each notebook independently shippable; HF Space live from week 2; scope can compress to 12 if week 4 is behind without breaking the platform identity</td>
+</tr>
+<tr>
+<td>Maintenance burden of 18+ notebooks + 18+ apps + 5 surfaces</td>
+<td>Medium</td>
+<td>High</td>
+<td>One source of truth; CI does the multi-surface fan-out; tests catch regressions</td>
+</tr>
+<tr>
+<td>Reporting-checklist drift (e.g., STROBE 2.0 release)</td>
+<td>Medium</td>
+<td>Medium</td>
+<td>YAML + community PRs; versioned checklists</td>
+</tr>
+<tr>
+<td>LLM API cost in phase 3</td>
+<td>Medium</td>
+<td>Medium</td>
+<td>LiteLLM lets institutional users plug their own key; default uses small-model routing</td>
+</tr>
+<tr>
+<td>Reviewer hostility to AI-assisted methodology papers</td>
+<td>Medium</td>
+<td>Medium</td>
+<td>Two-flavour AI-disclosure; library-only mode is fully classical</td>
+</tr>
+<tr>
+<td>Notebook smoke-test runtime (CI minutes)</td>
+<td>Low</td>
+<td>Low</td>
+<td>Cap each notebook at &lt; 30 s runtime; tag long-running examples as <code>@slow</code> and skip in CI</td>
+</tr>
+<tr>
+<td>External contributor onboarding</td>
+<td>Medium</td>
+<td>Low</td>
+<td>CONTRIBUTING.md + checklist YAMLs as easy first issues; "good first issue" label</td>
+</tr>
+</tbody>
+</table>
+<h2 id="9-success-criteria">9. Success criteria</h2>
+<h3 id="v08-week-8">v0.8 (week 8)</h3>
+<ul>
+<li>18 notebooks shipped, all passing CI smoke tests.</li>
+<li><code>pip install episim</code> works, ≥ 90 % core test coverage, Docker image on GHCR, Zenodo DOI assigned.</li>
+<li>Combined HF Space live; ≥ 5 design notebooks have working web UIs.</li>
+<li>JOSS submission accepted into review queue.</li>
+</ul>
+<h3 id="v10-week-14">v1.0 (week 14)</h3>
+<ul>
+<li>API frozen; SMMR or Stat Med submission of the methods paper.</li>
+<li>≥ 3 external users (i.e., not the author) have run an EPISIM study and given feedback.</li>
+<li>Phase 2 pre-registration mode shipped.</li>
+</ul>
+<h3 id="v20-month-6">v2.0 (month 6)</h3>
+<ul>
+<li>Phase 3 generative interface live behind an institutional auth wall.</li>
+<li>≥ 1 published manuscript in any journal that cites EPISIM's <code>Study.archive()</code> artefact for reproducibility.</li>
+</ul>
+<h2 id="10-open-questions-deferred-to-implementation-phase">10. Open questions deferred to implementation phase</h2>
+<ul>
+<li>Exact YAML schema for reporting checklists (will design alongside notebook 1).</li>
+<li>Exact <code>Study</code> JSON-schema for cross-language portability (deferred to phase 2).</li>
+<li>Whether to support R via <code>reticulate</code> or rpy2 — likely yes from v1.0 onward; not v0.1.</li>
+<li>Whether to support DAGitty integration for confounder visualisation — likely yes by v0.5.</li>
+</ul>
+<p>These are deliberately deferred so we don't burn brainstorming cycles on them now; they'll be resolved in concrete PRs at the relevant week.</p>
+<hr />
+<p><strong>This design is approved through Section 6. The implementation plan will be produced via the writing-plans skill once you sign off on this written spec.</strong></p>
+              
+            </div>
+          </div><footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/hssling/episim" class="fa fa-github" style="color: #fcfcfc"> GitHub</a>
+        </span>
+    
+    
+    
+  </span>
+</div>
+    <script src="../../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../../..";</script>
+    <script src="../../../js/theme_extra.js"></script>
+    <script src="../../../js/theme.js"></script>
+      <script src="../../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>
