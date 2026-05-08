@@ -18,6 +18,30 @@ def test_plan_research_infers_cohort_from_follow_up_question() -> None:
     assert plan.hypotheses
 
 
+def test_plan_research_filters_parameters_to_selected_design() -> None:
+    plan = plan_research(
+        "Is prior physical inactivity associated with frailty among older adults?",
+        design_key="case_control",
+        seed_value=123,
+        n=300,
+        n_interviews=12,
+        n_cases=150,
+    )
+    assert plan.parameters["n_cases"] == 150
+    assert "n" not in plan.parameters
+    assert "n_interviews" not in plan.parameters
+
+
+def test_plan_research_does_not_parse_frailty_as_ai() -> None:
+    plan = plan_research(
+        "What is the prevalence of frailty among community-dwelling older adults?",
+        design_key="cross_sectional",
+        seed_value=123,
+    )
+    assert "ai-enabled" not in plan.exposure_or_intervention.lower()
+    assert plan.outcomes[0] == "frailty prevalence"
+
+
 def test_conduct_research_returns_complete_research_bundle() -> None:
     bundle = conduct_research(
         "Does a randomized lifestyle intervention reduce frailty in community elders?",
@@ -60,6 +84,27 @@ def test_conduct_research_returns_complete_research_bundle() -> None:
     assert "comparator arm" in report
     assert "risk ratio" in report
     assert "absolute risk difference" in report
+
+
+def test_design_specific_reports_avoid_missing_metric_language() -> None:
+    cluster = conduct_research(
+        "Does a cluster randomized nutrition program reduce frailty in clinics?",
+        design_key="rct_cluster",
+        seed_value=321,
+    )
+    cluster_report = cluster.report.markdown.lower()
+    assert "cluster-level event rates" in cluster_report
+    assert "not recorded were assigned" not in cluster_report
+
+    survival = conduct_research(
+        "Does lifestyle intervention improve time to mortality among older adults?",
+        design_key="survival_cox",
+        seed_value=321,
+        n=300,
+    )
+    survival_report = survival.report.markdown.lower()
+    assert "hazard ratio" in survival_report
+    assert "not estimated" not in survival_report
 
 
 def test_research_bundle_archive_writes_complete_outputs(tmp_path) -> None:

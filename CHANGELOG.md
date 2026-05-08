@@ -2,6 +2,26 @@
 
 All notable changes to EPISIM are documented here. Format: Keep-a-Changelog. Versioning: SemVer.
 
+## [v0.12.4-alpha] - 2026-05-08
+
+### Changed
+
+- Added design-aware parameter filtering so stale Hugging Face or CLI override
+  JSON no longer crashes when users switch between study designs.
+- Expanded manuscript result interpretation across the implemented design
+  catalog: cross-sectional, case-control, cohort, RCT, cluster RCT,
+  stepped-wedge, ITS, regression discontinuity, IV, propensity score,
+  survival, meta-analysis, SEIR, microsimulation, Markov, network contagion,
+  mixed-methods, and PEAI outputs now produce design-specific result prose.
+- Tightened research-question parsing so words such as "frailty" are not
+  misclassified as AI exposure, and added better domain wording for physical
+  inactivity, nutrition, eligibility thresholds, prevention, and misinformation.
+
+### Fixed
+
+- Fixed missing-value phrases in cluster-trial and survival manuscript outputs
+  when valid design-specific metrics were available under alternate result keys.
+
 ## [v0.12.3-alpha] - 2026-05-08
 
 ### Changed

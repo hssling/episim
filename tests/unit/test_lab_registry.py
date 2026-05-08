@@ -18,6 +18,19 @@ def test_runner_executes_registered_design() -> None:
     assert study.results["prevalence"] > 0.0
 
 
+def test_runner_ignores_stale_overrides_for_selected_design() -> None:
+    study = run_design(
+        "case_control",
+        seed_value=77,
+        n=600,
+        n_interviews=12,
+        n_source=3000,
+        n_cases=120,
+    )
+    assert study.design == "case_control"
+    assert study.results["sampled_cases"] == 120
+
+
 def test_study_preview_returns_frames() -> None:
     study = run_design("case_control", seed_value=88, n_source=4000, n_cases=200)
     data_preview, result_preview = study_preview(study)

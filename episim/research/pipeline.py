@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -13,7 +14,13 @@ import pandas as pd
 
 from episim import __version__
 from episim.core.reproducibility import Study
-from episim.lab import get_design, list_designs, run_design, study_preview
+from episim.lab import (
+    get_design,
+    list_designs,
+    resolve_design_parameters,
+    run_design,
+    study_preview,
+)
 from episim.reporting.ai_disclosure import block as ai_disclosure
 
 
@@ -130,9 +137,10 @@ def plan_research(
     clean_question = _clean_question(question)
     selected_design = design_key or _infer_design_key(clean_question)
     design = get_design(selected_design)
-    params = dict(design.parameters)
-    params["seed_value"] = seed_value
-    params.update(parameter_overrides)
+    params = resolve_design_parameters(
+        design,
+        {"seed_value": seed_value, **parameter_overrides},
+    )
     title = _title_from_question(clean_question, design.title)
     target = _target_phrase(clean_question)
     exposure = _exposure_phrase(clean_question, design.family)
@@ -316,18 +324,35 @@ def _exposure_phrase(question: str, family: str) -> str:
     if "lifestyle" in q:
         label = "Structured lifestyle intervention"
         return f"{label} assignment" if family == "experimental" else label
-    if "diet" in q:
+    if "diet" in q or "nutrition" in q:
         label = "Dietary or nutrition-related intervention"
         return f"{label} assignment" if family == "experimental" else label
+    if "physical inactivity" in q or "inactive" in q:
+        return "Physical inactivity exposure"
     if "exercise" in q or "physical activity" in q:
-        label = "Physical activity intervention"
+        label = (
+            "Physical activity intervention"
+            if family == "experimental"
+            else "Physical activity exposure"
+        )
         return f"{label} assignment" if family == "experimental" else label
+    if "preventive intervention" in q or "prevention" in q:
+        label = "Preventive intervention"
+        return f"{label} assignment" if family == "experimental" else label
+    if "treatment intensity" in q:
+        return "Treatment intensity"
+    if "eligibility" in q or "age 65" in q:
+        return "Eligibility-threshold assignment"
+    if "misinformation" in q:
+        return "Health-misinformation exposure"
     if family == "experimental":
         return "Simulated intervention assignment"
-    if "ai" in q or "algorithm" in q:
+    if _mentions_ai(q):
         return "AI-enabled exposure or decision-support process"
     if "policy" in q:
         return "Policy or implementation exposure"
+    if "intervention" in q:
+        return "Proposed intervention or implementation exposure"
     return "Primary exposure or intervention specified by the research question"
 
 
@@ -345,11 +370,21 @@ def _outcome_phrases(question: str, design_key: str) -> tuple[str, ...]:
     q = question.lower()
     if design_key == "qualitative_mixed_methods":
         return ("theme saturation", "acceptability score", "integrated interpretation")
+    if design_key == "cross_sectional" and "prevalence" in q and "frailty" in q:
+        return ("frailty prevalence", "odds ratio", "exposure rate")
+    if design_key in {"markov_decision", "microsimulation_lifetable"}:
+        return ("QALYs and costs", "incremental cost-effectiveness", "mortality")
+    if "misinformation" in q:
+        return ("contagion adoption", "peak spread", "final attack rate")
+    if "fall" in q:
+        return ("monthly fall rate", "level change", "slope change")
+    if "hospital" in q:
+        return ("preventable hospitalization", "threshold effect", "local contrast")
     if "frailty" in q:
         return ("12-month frailty event", "risk ratio", "risk difference")
     if "cognitive" in q or "cognition" in q:
         return ("cognitive decline event", "risk ratio", "risk difference")
-    if "trust" in q and ("ai" in q or "algorithm" in q):
+    if "trust" in q and _mentions_ai(q):
         return ("trust and acceptability outcome", "theme saturation", "survey score")
     if "mortality" in q or design_key == "survival_cox":
         return ("time-to-event outcome", "censoring status", "hazard ratio")
@@ -358,6 +393,15 @@ def _outcome_phrases(question: str, design_key: str) -> tuple[str, ...]:
     if "cost" in q or design_key in {"markov_decision", "microsimulation_lifetable"}:
         return ("costs", "QALYs", "incremental net benefit")
     return ("primary health or social outcome", "effect estimate", "uncertainty interval")
+
+
+def _mentions_ai(text: str) -> bool:
+    return bool(
+        re.search(
+            r"\b(ai|a\.i\.|artificial intelligence|algorithm|algorithmic)\b",
+            text.lower(),
+        )
+    )
 
 
 def _hypotheses(
@@ -1548,9 +1592,18 @@ def _make_declarations(plan: ResearchPlan) -> pd.DataFrame:
 
 def _primary_result_paragraph(plan: ResearchPlan, study: Study) -> str:
     results = study.results
-    if plan.design_key in {"rct_parallel", "rct_cluster", "stepped_wedge"}:
+    if plan.design_key == "cross_sectional":
+        prevalence = _estimate_with_ci(results, "prevalence", percent=True)
+        odds_ratio = _estimate_with_ci(results, "odds_ratio")
+        exposure_rate = _percent(results.get("exposure_rate"))
+        return (
+            f"The cross-sectional sample included {len(study.data)} simulated records. "
+            f"Estimated {plan.outcomes[0]} was {prevalence}, exposure prevalence was "
+            f"{exposure_rate}, and the exposure-outcome odds ratio was {odds_ratio}."
+        )
+    if plan.design_key == "rct_parallel":
         n_total = results.get("n_total", len(study.data))
-        n_treatment = results.get("n_treatment", results.get("n_treated", "not recorded"))
+        n_treatment = results.get("n_treatment", "not recorded")
         n_control = results.get("n_control", "not recorded")
         treated_rate = _percent(results.get("event_rate_treatment"))
         control_rate = _percent(results.get("event_rate_control"))
@@ -1562,6 +1615,29 @@ def _primary_result_paragraph(plan: ResearchPlan, study: Study) -> str:
             f"The {plan.outcomes[0]} rate was {treated_rate} in the intervention arm "
             f"and {control_rate} in the comparator arm. The estimated risk ratio was "
             f"{risk_ratio}, and the absolute risk difference was {risk_difference}."
+        )
+    if plan.design_key == "rct_cluster":
+        risk_ratio = _estimate_with_ci(results, "risk_ratio")
+        risk_difference = _estimate_with_ci(results, "risk_difference", percent=True)
+        return (
+            f"The cluster trial simulated {results.get('n_clusters', 'not recorded')} "
+            f"clusters and {results.get('n_total', len(study.data))} participants. "
+            f"Cluster-level event rates were "
+            f"{_percent(results.get('treated_cluster_event_rate'))} in treated clusters "
+            f"and {_percent(results.get('control_cluster_event_rate'))} in control "
+            f"clusters; the risk ratio was {risk_ratio} and the risk difference was "
+            f"{risk_difference}."
+        )
+    if plan.design_key == "stepped_wedge":
+        return (
+            f"The stepped-wedge simulation generated {results.get('n_total', len(study.data))} "
+            f"cluster-period participant records across rollout periods "
+            f"{results.get('rollout_period_min', 'not recorded')} to "
+            f"{results.get('rollout_period_max', 'not recorded')}. Event rates were "
+            f"{_percent(results.get('treated_event_rate'))} under intervention exposure "
+            f"and {_percent(results.get('control_event_rate'))} under control exposure; "
+            f"the marginal risk difference was "
+            f"{_percent(results.get('marginal_risk_difference'))}."
         )
     if plan.design_key == "cohort":
         risk_ratio = _estimate_with_ci(results, "risk_ratio")
@@ -1575,13 +1651,118 @@ def _primary_result_paragraph(plan: ResearchPlan, study: Study) -> str:
         odds_ratio = _estimate_with_ci(results, "odds_ratio")
         return (
             f"The case-control simulation estimated an odds ratio of {odds_ratio} for "
-            f"{plan.exposure_or_intervention.lower()} and {plan.outcomes[0]}."
+            f"{plan.exposure_or_intervention.lower()} and {plan.outcomes[0]}. "
+            f"The analytic sample contained {results.get('sampled_cases', 'not recorded')} "
+            f"cases and {results.get('sampled_controls', 'not recorded')} controls."
+        )
+    if plan.design_key == "interrupted_time_series":
+        return (
+            f"The interrupted time-series simulation estimated a baseline rate of "
+            f"{results.get('estimated_baseline_rate', 'not recorded')} and a post-policy "
+            f"level change of {results.get('estimated_level_change', 'not recorded')}. "
+            f"The pre-period mean rate was {results.get('pre_mean_rate', 'not recorded')} "
+            f"and the post-period mean rate was "
+            f"{results.get('post_mean_rate', 'not recorded')}."
+        )
+    if plan.design_key == "regression_discontinuity":
+        return (
+            f"The regression-discontinuity analysis used "
+            f"{results.get('local_n', 'not recorded')} observations inside the bandwidth. "
+            f"The estimated threshold jump was "
+            f"{results.get('estimated_jump', 'not recorded')}, with mean outcomes of "
+            f"{results.get('left_mean_outcome', 'not recorded')} below and "
+            f"{results.get('right_mean_outcome', 'not recorded')} above the cutoff."
+        )
+    if plan.design_key == "instrumental_variables":
+        return (
+            f"The instrumental-variable simulation estimated a first stage of "
+            f"{results.get('first_stage', 'not recorded')}, reduced form of "
+            f"{results.get('reduced_form', 'not recorded')}, Wald local average "
+            f"treatment effect of {results.get('wald_late', 'not recorded')}, and naive "
+            f"difference of {results.get('naive_difference', 'not recorded')}."
+        )
+    if plan.design_key == "propensity_score":
+        return (
+            f"The propensity-score simulation estimated a naive difference of "
+            f"{results.get('naive_difference', 'not recorded')} and an IPTW-adjusted "
+            f"difference of {results.get('iptw_difference', 'not recorded')}. The mean "
+            f"propensity score was {results.get('mean_propensity', 'not recorded')} and "
+            f"maximum pre-weighting standardized mean difference was "
+            f"{results.get('max_unweighted_smd', 'not recorded')}."
         )
     if plan.design_key == "survival_cox":
-        hazard_ratio = _estimate_with_ci(results, "hazard_ratio")
+        hazard_ratio = _estimate_with_ci(results, "estimated_hazard_ratio")
         return (
-            f"The time-to-event simulation estimated a hazard-ratio-style effect of "
-            f"{hazard_ratio} for {plan.outcomes[0]}."
+            f"The time-to-event simulation estimated a hazard ratio of {hazard_ratio} "
+            f"for {plan.outcomes[0]}. The event fraction was "
+            f"{_percent(results.get('event_fraction'))}, with event rates of "
+            f"{_percent(results.get('treated_event_rate'))} in the treated group and "
+            f"{_percent(results.get('control_event_rate'))} in the comparator group."
+        )
+    if plan.design_key == "meta_analysis":
+        pooled = _estimate_with_ci(results, "pooled_effect", ci_key="pooled_ci")
+        return (
+            f"The random-effects meta-analysis pooled {len(study.data)} study-level "
+            f"effects. The pooled effect was {pooled}, tau-squared was "
+            f"{results.get('tau2', 'not recorded')}, I-squared was "
+            f"{_percent(results.get('i2'))}, and Cochran's Q was "
+            f"{results.get('q', 'not recorded')}."
+        )
+    if plan.design_key == "agent_based_seir":
+        return (
+            f"The SEIR simulation peaked at {results.get('peak_infectious', 'not recorded')} "
+            f"infectious agents on day {results.get('peak_day', 'not recorded')}. "
+            f"Final recovered count was {results.get('final_recovered', 'not recorded')} "
+            f"and the attack rate was {_percent(results.get('attack_rate'))}."
+        )
+    if plan.design_key == "microsimulation_lifetable":
+        return (
+            f"The microsimulation estimated mean QALYs of "
+            f"{results.get('mean_qaly', 'not recorded')} and mean cost of "
+            f"{results.get('mean_cost', 'not recorded')}. Disease prevalence was "
+            f"{_percent(results.get('disease_prevalence'))} and mortality fraction was "
+            f"{_percent(results.get('mortality_fraction'))}."
+        )
+    if plan.design_key == "markov_decision":
+        return (
+            f"The Markov model estimated prevention costs of "
+            f"{results.get('prevention_cost', 'not recorded')} and QALYs of "
+            f"{results.get('prevention_qaly', 'not recorded')}, compared with standard "
+            f"care costs of {results.get('standard_cost', 'not recorded')} and QALYs of "
+            f"{results.get('standard_qaly', 'not recorded')}. The ICER was "
+            f"{results.get('icer', 'not recorded')} per QALY gained."
+        )
+    if plan.design_key == "network_contagion":
+        return (
+            f"The network-contagion simulation peaked at "
+            f"{results.get('peak_infectious', 'not recorded')} active cases on day "
+            f"{results.get('peak_day', 'not recorded')}. The final attack rate was "
+            f"{_percent(results.get('final_attack_rate'))} across a network with observed "
+            f"mean degree {results.get('mean_degree_observed', 'not recorded')}."
+        )
+    if plan.design_key == "qualitative_mixed_methods":
+        return (
+            f"The mixed-methods simulation reached saturation by interview "
+            f"{results.get('saturation_interview', 'not recorded')}, identified "
+            f"{results.get('themes_identified', 'not recorded')} themes, and estimated a "
+            f"survey acceptability difference of "
+            f"{results.get('survey_acceptability_difference', 'not recorded')}. The "
+            f"integrated inference was "
+            f"{results.get('mixed_methods_inference', 'not recorded')}."
+        )
+    if plan.design_key == "ecological_peai":
+        phase3 = results.get("phase3", {})
+        phase4 = results.get("phase4", {})
+        validity = phase3.get("criterion_validity", {}) if isinstance(phase3, dict) else {}
+        gbt = validity.get("peai_gbt", {}) if isinstance(validity, dict) else {}
+        return (
+            f"The PEAI simulation retained "
+            f"{phase4.get('n_prospective_after_attrition', len(study.data))} prospective "
+            f"records after attrition. Maximum frailty AUROC was "
+            f"{phase4.get('max_frailty_auroc', 'not recorded')}, maximum ascertainment "
+            f"attenuation was {phase4.get('max_ascertainment_attenuation', 'not recorded')}, "
+            f"and the GBT PEAI Spearman correlation with frailty was "
+            f"{gbt.get('spearman_vs_frailty', 'not recorded')}."
         )
     numeric_results = [
         f"{metric.replace('_', ' ')}={value}"
@@ -1648,10 +1829,11 @@ def _estimate_with_ci(
     results: dict[str, Any],
     metric: str,
     *,
+    ci_key: str | None = None,
     percent: bool = False,
 ) -> str:
     value = results.get(metric)
-    ci = results.get(f"{metric}_ci")
+    ci = results.get(ci_key or f"{metric}_ci")
     if value is None:
         return "not estimated"
     if percent and isinstance(value, int | float):
