@@ -27,6 +27,10 @@ def test_conduct_research_returns_complete_research_bundle() -> None:
     assert bundle.plan.design_key == "rct_parallel"
     assert bundle.study.design == "rct_parallel"
     assert len(bundle.study.data) == 500
+    assert len(bundle.collected_data) == 500
+    assert len(bundle.cleaned_data) == 500
+    assert not bundle.cleaning_log.empty
+    assert not bundle.analysis_steps_record.empty
     assert not bundle.instruments.empty
     assert not bundle.database_dictionary.empty
     assert not bundle.collection_events.empty
@@ -58,6 +62,10 @@ def test_research_bundle_archive_writes_complete_outputs(tmp_path) -> None:
         "protocol.json",
         "protocol.md",
         "report.md",
+        "collected_synthetic_data.csv",
+        "cleaned_analysis_dataset.csv",
+        "data_cleaning_log.csv",
+        "analysis_steps.csv",
         "data_collection_tools.csv",
         "database_dictionary.csv",
         "collection_events.csv",
@@ -81,6 +89,10 @@ def test_research_bundle_archive_writes_complete_outputs(tmp_path) -> None:
             ).fetchall()
         }
     assert "synthetic_observations" in tables
+    assert "collected_synthetic_data" in tables
+    assert "cleaned_analysis_dataset" in tables
+    assert "data_cleaning_log" in tables
+    assert "analysis_steps" in tables
     assert "collection_events" in tables
     assert bundle.plan.design_key == "qualitative_mixed_methods"
 

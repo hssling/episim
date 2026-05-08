@@ -64,6 +64,10 @@ The archive contains:
 - `protocol.json` and `protocol.md`
 - `report.md` with structured abstract, methods, results, discussion,
   conclusions, references, and declarations
+- `collected_synthetic_data.csv`
+- `cleaned_analysis_dataset.csv`
+- `data_cleaning_log.csv`
+- `analysis_steps.csv`
 - `data_collection_tools.csv`
 - `database_dictionary.csv`
 - `collection_events.csv`
@@ -75,6 +79,12 @@ The archive contains:
 The workflow generates synthetic data only. It is suitable for methods
 development, teaching, protocol refinement, and feasibility simulation; it is
 not evidence that a real intervention or exposure works in the real world.
+
+External realism calibration can be layered around EPISIM by using the exported
+CSV or SQLite research database with authenticated tools such as Google Cloud
+healthcare/FHIR pipelines, Sensitive Data Protection de-identification
+workflows, or Vertex AI tabular workflows. EPISIM itself keeps the default
+workflow local, deterministic, and credential-free.
 
 ## Interactive app
 

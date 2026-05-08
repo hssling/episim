@@ -60,6 +60,10 @@ class ResearchBundle:
 
     plan: ResearchPlan
     study: Study
+    collected_data: pd.DataFrame
+    cleaned_data: pd.DataFrame
+    cleaning_log: pd.DataFrame
+    analysis_steps_record: pd.DataFrame
     instruments: pd.DataFrame
     database_dictionary: pd.DataFrame
     collection_events: pd.DataFrame
@@ -83,6 +87,10 @@ class ResearchBundle:
         )
         (out / "protocol.md").write_text(_protocol_markdown(self.plan), encoding="utf-8")
         (out / "report.md").write_text(self.report.markdown, encoding="utf-8")
+        self.collected_data.to_csv(out / "collected_synthetic_data.csv", index=False)
+        self.cleaned_data.to_csv(out / "cleaned_analysis_dataset.csv", index=False)
+        self.cleaning_log.to_csv(out / "data_cleaning_log.csv", index=False)
+        self.analysis_steps_record.to_csv(out / "analysis_steps.csv", index=False)
         self.instruments.to_csv(out / "data_collection_tools.csv", index=False)
         self.database_dictionary.to_csv(out / "database_dictionary.csv", index=False)
         self.collection_events.to_csv(out / "collection_events.csv", index=False)
@@ -165,6 +173,9 @@ def conduct_research(
         **parameter_overrides,
     )
     study = run_design(plan.design_key, **plan.parameters)
+    collected_data = _make_collected_data(study)
+    cleaned_data, cleaning_log = _make_cleaned_dataset(study)
+    analysis_steps_record = _make_analysis_steps_record(plan, study)
     instruments = _make_instruments(plan, study)
     database_dictionary = _make_database_dictionary(plan, study, instruments)
     collection_events = _make_collection_events(plan, study)
@@ -179,6 +190,8 @@ def conduct_research(
     report = _make_report(
         plan,
         study,
+        cleaning_log,
+        analysis_steps_record,
         instruments,
         follow_up,
         outcome_record,
@@ -190,6 +203,10 @@ def conduct_research(
     return ResearchBundle(
         plan=plan,
         study=study,
+        collected_data=collected_data,
+        cleaned_data=cleaned_data,
+        cleaning_log=cleaning_log,
+        analysis_steps_record=analysis_steps_record,
         instruments=instruments,
         database_dictionary=database_dictionary,
         collection_events=collection_events,
@@ -404,6 +421,80 @@ def _make_instruments(plan: ResearchPlan, study: Study) -> pd.DataFrame:
             }
         )
     return pd.DataFrame(rows)
+
+
+def _make_collected_data(study: Study) -> pd.DataFrame:
+    collected = study.data.copy()
+    collected.insert(0, "episim_record_id", range(1, len(collected) + 1))
+    collected.insert(1, "synthetic_source_status", "collected")
+    return collected
+
+
+def _make_cleaned_dataset(study: Study) -> tuple[pd.DataFrame, pd.DataFrame]:
+    cleaned = study.data.copy()
+    cleaned.insert(0, "episim_record_id", range(1, len(cleaned) + 1))
+    rows: list[dict[str, Any]] = []
+    for column in cleaned.columns:
+        series = cleaned[column]
+        before_missing = int(series.isna().sum())
+        action = "retained"
+        detail = "No cleaning action required."
+        if before_missing > 0:
+            if pd.api.types.is_numeric_dtype(series):
+                cleaned[column] = series.fillna(series.median())
+                action = "median_imputation"
+                detail = "Numeric missing values filled with synthetic sample median."
+            else:
+                cleaned[column] = series.fillna("missing")
+                action = "missing_category"
+                detail = "Non-numeric missing values assigned explicit missing category."
+        if column == "episim_record_id":
+            action = "primary_key_created"
+            detail = "Sequential non-identifying synthetic research database key created."
+        rows.append(
+            {
+                "variable": str(column),
+                "before_missing": before_missing,
+                "after_missing": int(cleaned[column].isna().sum()),
+                "action": action,
+                "detail": detail,
+            }
+        )
+    return cleaned, pd.DataFrame(rows)
+
+
+def _make_analysis_steps_record(plan: ResearchPlan, study: Study) -> pd.DataFrame:
+    rows: list[dict[str, Any]] = []
+    for step_number, step in enumerate(plan.analysis_plan, start=1):
+        rows.append(
+            {
+                "step_number": step_number,
+                "analysis_step": step,
+                "input_table": "cleaned_analysis_dataset",
+                "output": _step_output(step_number, study),
+                "reproducibility_note": f"Seed {study.seed}; design {plan.design_key}.",
+            }
+        )
+    rows.append(
+        {
+            "step_number": len(rows) + 1,
+            "analysis_step": "Generate manuscript assets and reproducibility archive.",
+            "input_table": "all generated research tables",
+            "output": "report.md, figures, SQLite database, and study manifest",
+            "reproducibility_note": "Archive is deterministic for the saved seed and parameters.",
+        }
+    )
+    return pd.DataFrame(rows)
+
+
+def _step_output(step_number: int, study: Study) -> str:
+    if step_number == 1:
+        return f"Collected and cleaned {len(study.data)} synthetic records."
+    if step_number == 2:
+        return "Variable summary, data-quality checks, and database dictionary."
+    if step_number == 3:
+        return f"{len(study.results)} primary/secondary metrics in outcome_record."
+    return "Interpretation, limitations, and next-step recommendations."
 
 
 def _make_database_dictionary(
@@ -957,10 +1048,18 @@ def _write_distribution_figure(data: pd.DataFrame, path: Path) -> None:
 
 
 def _write_sqlite_database(bundle: ResearchBundle, path: Path) -> None:
-    observations = bundle.study.data.copy()
-    observations.insert(0, "episim_record_id", range(1, len(observations) + 1))
     with sqlite3.connect(path) as con:
-        observations.to_sql("synthetic_observations", con, index=False, if_exists="replace")
+        bundle.collected_data.to_sql(
+            "collected_synthetic_data", con, index=False, if_exists="replace"
+        )
+        bundle.cleaned_data.to_sql(
+            "cleaned_analysis_dataset", con, index=False, if_exists="replace"
+        )
+        bundle.cleaning_log.to_sql("data_cleaning_log", con, index=False, if_exists="replace")
+        bundle.analysis_steps_record.to_sql(
+            "analysis_steps", con, index=False, if_exists="replace"
+        )
+        bundle.cleaned_data.to_sql("synthetic_observations", con, index=False, if_exists="replace")
         bundle.instruments.to_sql("data_collection_tools", con, index=False, if_exists="replace")
         bundle.database_dictionary.to_sql(
             "database_dictionary", con, index=False, if_exists="replace"
@@ -1185,6 +1284,8 @@ def _make_declarations(plan: ResearchPlan) -> pd.DataFrame:
 def _make_report(
     plan: ResearchPlan,
     study: Study,
+    cleaning_log: pd.DataFrame,
+    analysis_steps_record: pd.DataFrame,
     instruments: pd.DataFrame,
     follow_up: pd.DataFrame,
     outcome_record: pd.DataFrame,
@@ -1244,9 +1345,13 @@ def _make_report(
         f"Data collection: {len(instruments)} variable-level fields were mapped to "
         "instrument sections, timing, collection mode, definitions, and quality-control "
         f"checks. The follow-up schedule contained {len(follow_up)} planned timepoints.\n\n"
+        f"Data management: {len(study.data)} collected synthetic records were converted "
+        "into a cleaned analysis dataset with a non-identifying record key. The cleaning "
+        f"log contains {len(cleaning_log)} variable-level checks.\n\n"
         f"Analysis: {'; '.join(plan.analysis_plan)} Data-quality checks, variable "
         f"summaries, primary estimates, and interpretation tables were generated. "
-        f"Analysis table inventory: {table_inventory}."
+        f"Analysis table inventory: {table_inventory}. A step-by-step analysis log "
+        f"contains {len(analysis_steps_record)} recorded steps."
     )
     results = (
         f"The simulation generated {len(study.data)} records with seed {study.seed}. "
@@ -1280,6 +1385,8 @@ def _make_report(
         limitations=limitations,
         next_steps=next_steps,
         guideline_checklist=guideline_checklist,
+        cleaning_log=cleaning_log,
+        analysis_steps_record=analysis_steps_record,
         references=references,
         declarations=declarations,
     )
@@ -1348,6 +1455,8 @@ def _report_markdown(
     limitations: tuple[str, ...],
     next_steps: tuple[str, ...],
     guideline_checklist: pd.DataFrame,
+    cleaning_log: pd.DataFrame,
+    analysis_steps_record: pd.DataFrame,
     references: pd.DataFrame,
     declarations: pd.DataFrame,
 ) -> str:
@@ -1387,6 +1496,18 @@ def _report_markdown(
                 "instrument section, timing, collection mode, operational definition, "
                 "and quality-control check."
             ),
+            "",
+            "### Data Cleaning And Database Production",
+            (
+                "The archive includes the collected synthetic dataset, cleaned analysis "
+                "dataset, data dictionary, cleaning log, collection-event audit trail, "
+                "and a SQLite research database."
+            ),
+            "",
+            _markdown_table(cleaning_log[["variable", "action", "after_missing"]].head(20)),
+            "",
+            "### Analysis Steps",
+            _markdown_table(analysis_steps_record),
             "",
             "### Reporting Guideline Checklist",
             _markdown_table(guideline_checklist[["item", "status", "location"]].head(20)),

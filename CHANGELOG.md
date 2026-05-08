@@ -2,6 +2,17 @@
 
 All notable changes to EPISIM are documented here. Format: Keep-a-Changelog. Versioning: SemVer.
 
+## [v0.11.0-alpha] - 2026-05-08
+
+### Added
+
+- Added explicit collected-data, cleaned-analysis-dataset, data-cleaning-log,
+  and analysis-step artifacts to the end-to-end research workflow.
+- Expanded the Hugging Face research workflow display to show collected data,
+  cleaned data, cleaning steps, and analysis steps before final manuscript output.
+- Extended the SQLite research database with collected, cleaned, cleaning-log,
+  and analysis-step tables.
+
 ## [v0.10.0-alpha] - 2026-05-08
 
 ### Added

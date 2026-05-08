@@ -34,10 +34,17 @@ print(bundle.plan.hypotheses)
 print(bundle.report.markdown)
 ```
 
-The archived research bundle includes protocol files, a realistic synthetic
-data-collection toolset, database dictionary, collection-event audit trail,
-SQLite research database, analysis tables, PNG figures, guideline checklist,
-references, declarations, and a structured manuscript draft.
+The archived research bundle includes protocol files, collected synthetic data,
+cleaned analysis data, data-cleaning log, analysis-step log, a realistic
+synthetic data-collection toolset, database dictionary, collection-event audit
+trail, SQLite research database, analysis tables, PNG figures, guideline
+checklist, references, declarations, and a structured manuscript draft.
+
+For higher-fidelity calibration, EPISIM outputs standard CSV and SQLite assets
+that can be compared with external synthetic-data or cloud data services such
+as Google Cloud healthcare/FHIR tooling, Sensitive Data Protection workflows,
+or Vertex AI tabular workflows. EPISIM does not send data to external services
+unless a user builds and authenticates such an integration.
 
 ## Status
 

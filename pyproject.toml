@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "episim"
-version = "0.10.0a1"
+version = "0.11.0a1"
 description = "Epidemiology Platform for In Silico Methods"
 readme = "README.md"
 authors = [{name = "Siddalingaiah H. S.", email = "hssling@gmail.com"}]

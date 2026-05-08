@@ -95,7 +95,7 @@ def _run_research_question(
     question: str,
     design_key: str,
     overrides_json: str,
-) -> tuple[str, Any, Any, Any, Any, Any, Any, Any, str, str]:
+) -> tuple[str, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, str, str]:
     overrides = json.loads(overrides_json) if overrides_json.strip() else {}
     selected_design = None if design_key == "auto" else design_key
     bundle = conduct_research(question, design_key=selected_design, **overrides)
@@ -115,6 +115,10 @@ def _run_research_question(
     )
     return (
         protocol,
+        bundle.collected_data,
+        bundle.cleaned_data,
+        bundle.cleaning_log,
+        bundle.analysis_steps_record,
         bundle.instruments,
         bundle.database_dictionary,
         bundle.collection_events.head(100),
@@ -158,6 +162,10 @@ with gr.Blocks(title="EPISIM Lab", theme=gr.themes.Soft()) as demo:
         )
         rq_run = gr.Button("Conduct simulated research", variant="primary")
         rq_protocol = gr.Markdown(label="Protocol")
+        rq_collected = gr.Dataframe(label="Collected synthetic data", interactive=False, wrap=True)
+        rq_cleaned = gr.Dataframe(label="Cleaned analysis dataset", interactive=False, wrap=True)
+        rq_cleaning = gr.Dataframe(label="Data-cleaning log", interactive=False, wrap=True)
+        rq_steps = gr.Dataframe(label="Analysis steps", interactive=False, wrap=True)
         rq_instruments = gr.Dataframe(label="Data collection tools", interactive=False, wrap=True)
         rq_dictionary = gr.Dataframe(label="Database dictionary", interactive=False, wrap=True)
         rq_events = gr.Dataframe(
@@ -210,6 +218,10 @@ with gr.Blocks(title="EPISIM Lab", theme=gr.themes.Soft()) as demo:
         inputs=[question, rq_design, rq_overrides],
         outputs=[
             rq_protocol,
+            rq_collected,
+            rq_cleaned,
+            rq_cleaning,
+            rq_steps,
             rq_instruments,
             rq_dictionary,
             rq_events,
