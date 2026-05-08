@@ -2,6 +2,17 @@
 
 All notable changes to EPISIM are documented here. Format: Keep-a-Changelog. Versioning: SemVer.
 
+## [v0.12.3-alpha] - 2026-05-08
+
+### Changed
+
+- Made generated research reports question-specific and result-led, including
+  design-specific methods, intervention/outcome wording, event rates, relative
+  and absolute effect estimates, confidence intervals, and interpretation.
+- Added regression coverage so RCT frailty reports must include concrete arm,
+  outcome, risk-ratio, and risk-difference language rather than generic process
+  text only.
+
 ## [v0.12.2-alpha] - 2026-05-08
 
 ### Changed

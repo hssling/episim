@@ -313,12 +313,17 @@ def _population_phrase(question: str) -> str:
 
 def _exposure_phrase(question: str, family: str) -> str:
     q = question.lower()
+    if "lifestyle" in q:
+        label = "Structured lifestyle intervention"
+        return f"{label} assignment" if family == "experimental" else label
+    if "diet" in q:
+        label = "Dietary or nutrition-related intervention"
+        return f"{label} assignment" if family == "experimental" else label
+    if "exercise" in q or "physical activity" in q:
+        label = "Physical activity intervention"
+        return f"{label} assignment" if family == "experimental" else label
     if family == "experimental":
         return "Simulated intervention assignment"
-    if "diet" in q:
-        return "Dietary or nutrition-related exposure"
-    if "exercise" in q or "physical activity" in q:
-        return "Physical activity exposure"
     if "ai" in q or "algorithm" in q:
         return "AI-enabled exposure or decision-support process"
     if "policy" in q:
@@ -340,6 +345,12 @@ def _outcome_phrases(question: str, design_key: str) -> tuple[str, ...]:
     q = question.lower()
     if design_key == "qualitative_mixed_methods":
         return ("theme saturation", "acceptability score", "integrated interpretation")
+    if "frailty" in q:
+        return ("12-month frailty event", "risk ratio", "risk difference")
+    if "cognitive" in q or "cognition" in q:
+        return ("cognitive decline event", "risk ratio", "risk difference")
+    if "trust" in q and ("ai" in q or "algorithm" in q):
+        return ("trust and acceptability outcome", "theme saturation", "survey score")
     if "mortality" in q or design_key == "survival_cox":
         return ("time-to-event outcome", "censoring status", "hazard ratio")
     if "infection" in q or design_key in {"agent_based_seir", "network_contagion"}:
@@ -1535,6 +1546,139 @@ def _make_declarations(plan: ResearchPlan) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=["declaration", "statement"])
 
 
+def _primary_result_paragraph(plan: ResearchPlan, study: Study) -> str:
+    results = study.results
+    if plan.design_key in {"rct_parallel", "rct_cluster", "stepped_wedge"}:
+        n_total = results.get("n_total", len(study.data))
+        n_treatment = results.get("n_treatment", results.get("n_treated", "not recorded"))
+        n_control = results.get("n_control", "not recorded")
+        treated_rate = _percent(results.get("event_rate_treatment"))
+        control_rate = _percent(results.get("event_rate_control"))
+        risk_ratio = _estimate_with_ci(results, "risk_ratio")
+        risk_difference = _estimate_with_ci(results, "risk_difference", percent=True)
+        return (
+            f"Among {n_total} simulated participants, {n_treatment} were assigned to "
+            f"{plan.exposure_or_intervention.lower()} and {n_control} to comparator. "
+            f"The {plan.outcomes[0]} rate was {treated_rate} in the intervention arm "
+            f"and {control_rate} in the comparator arm. The estimated risk ratio was "
+            f"{risk_ratio}, and the absolute risk difference was {risk_difference}."
+        )
+    if plan.design_key == "cohort":
+        risk_ratio = _estimate_with_ci(results, "risk_ratio")
+        risk_difference = _estimate_with_ci(results, "risk_difference", percent=True)
+        return (
+            f"The cohort simulation followed {results.get('n_followed', len(study.data))} "
+            f"records after attrition. For {plan.outcomes[0]}, the estimated risk ratio "
+            f"was {risk_ratio} and the risk difference was {risk_difference}."
+        )
+    if plan.design_key == "case_control":
+        odds_ratio = _estimate_with_ci(results, "odds_ratio")
+        return (
+            f"The case-control simulation estimated an odds ratio of {odds_ratio} for "
+            f"{plan.exposure_or_intervention.lower()} and {plan.outcomes[0]}."
+        )
+    if plan.design_key == "survival_cox":
+        hazard_ratio = _estimate_with_ci(results, "hazard_ratio")
+        return (
+            f"The time-to-event simulation estimated a hazard-ratio-style effect of "
+            f"{hazard_ratio} for {plan.outcomes[0]}."
+        )
+    numeric_results = [
+        f"{metric.replace('_', ' ')}={value}"
+        for metric, value in results.items()
+        if isinstance(value, int | float)
+    ]
+    if numeric_results:
+        return "Primary simulated metrics were " + ", ".join(numeric_results[:6]) + "."
+    return f"The simulation generated {len(study.data)} synthetic records for analysis."
+
+
+def _design_specific_methods(plan: ResearchPlan, study: Study) -> str:
+    if plan.design_key == "rct_parallel":
+        return (
+            "Trial procedures: participants were individually randomized to intervention "
+            "or comparator arms, baseline age, sex, and baseline-risk fields were "
+            "recorded, and the endpoint was assessed at 12 months. The primary estimands "
+            "were event rates by arm, risk ratio, and absolute risk difference."
+        )
+    if plan.design_key == "cohort":
+        return (
+            "Cohort procedures: baseline exposure and covariates were recorded before "
+            "follow-up, attrition was simulated, and cumulative incidence was compared "
+            "between exposed and unexposed groups."
+        )
+    if plan.design_key == "qualitative_mixed_methods":
+        return (
+            "Mixed-methods procedures: sequential interviews were simulated to assess "
+            "theme discovery and saturation, then integrated with a quantitative survey "
+            "strand for triangulated interpretation."
+        )
+    return (
+        f"Design procedures: the {get_design(plan.design_key).title.lower()} generated "
+        "design-specific data structures and estimands from the cleaned analysis dataset."
+    )
+
+
+def _design_specific_discussion(plan: ResearchPlan, study: Study) -> str:
+    if plan.design_key == "rct_parallel":
+        direction = _direction_from_risk_difference(study.results.get("risk_difference"))
+        return (
+            f"In this synthetic trial, {plan.exposure_or_intervention.lower()} produced "
+            f"{direction} for {plan.outcomes[0]}. The effect size and interval should be "
+            "used to refine sample-size assumptions, endpoint definitions, and follow-up "
+            "procedures before any real trial."
+        )
+    if plan.design_key == "cohort":
+        return (
+            "The simulated cohort output is useful for checking exposure definition, "
+            "follow-up completeness, attrition assumptions, and expected event rates."
+        )
+    if plan.design_key == "qualitative_mixed_methods":
+        return (
+            "The mixed-methods output is useful for checking whether interview sampling, "
+            "theme saturation, survey measurement, and integration logic are coherent."
+        )
+    return (
+        "The design-specific estimates should be interpreted as a stress test of the "
+        "proposed research workflow rather than as empirical evidence."
+    )
+
+
+def _estimate_with_ci(
+    results: dict[str, Any],
+    metric: str,
+    *,
+    percent: bool = False,
+) -> str:
+    value = results.get(metric)
+    ci = results.get(f"{metric}_ci")
+    if value is None:
+        return "not estimated"
+    if percent and isinstance(value, int | float):
+        estimate = _percent(value)
+        if isinstance(ci, list | tuple) and len(ci) == 2:
+            return f"{estimate} (95% CI {_percent(ci[0])} to {_percent(ci[1])})"
+        return estimate
+    if isinstance(ci, list | tuple) and len(ci) == 2:
+        return f"{value} (95% CI {ci[0]} to {ci[1]})"
+    return str(value)
+
+
+def _percent(value: Any) -> str:
+    if isinstance(value, int | float):
+        return f"{100 * float(value):.1f}%"
+    return "not recorded"
+
+
+def _direction_from_risk_difference(value: Any) -> str:
+    if isinstance(value, int | float):
+        if value < 0:
+            return "a lower simulated event rate than comparator"
+        if value > 0:
+            return "a higher simulated event rate than comparator"
+    return "an indeterminate simulated direction of effect"
+
+
 def _make_report(
     plan: ResearchPlan,
     study: Study,
@@ -1551,9 +1695,11 @@ def _make_report(
     references: pd.DataFrame,
     declarations: pd.DataFrame,
 ) -> ResearchReport:
-    result_lines = _result_lines(study)
     guideline = _reporting_guideline(plan.design_key)
     table_inventory = ", ".join(name for name in analysis_tables)
+    key_result = _primary_result_paragraph(plan, study)
+    methods_detail = _design_specific_methods(plan, study)
+    discussion_detail = _design_specific_discussion(plan, study)
     limitations = (
         (
             "All records are synthetic and should be used for method development, "
@@ -1580,13 +1726,13 @@ def _make_report(
     abstract = (
         f"Background: {plan.question}\n"
         f"Objective: {plan.aim}\n"
-        f"Methods: EPISIM generated a {guideline}-aligned synthetic {plan.design_key} "
-        f"study using seed {study.seed}. Structured data-collection tools, follow-up "
-        "logs, data-quality checks, analysis tables, and figures were produced.\n"
-        f"Results: {len(study.data)} records and {len(study.results)} summary metrics "
-        f"were generated. {result_lines[0] if result_lines else ''}\n"
-        "Conclusions: The workflow provides simulated evidence for design development "
-        "and protocol testing, not real-world effectiveness evidence."
+        f"Methods: EPISIM generated a {guideline}-aligned synthetic "
+        f"{get_design(plan.design_key).title.lower()} using seed {study.seed}. "
+        f"The simulated exposure was {plan.exposure_or_intervention.lower()} and "
+        f"the primary outcome was {plan.outcomes[0]}.\n"
+        f"Results: {key_result}\n"
+        "Conclusions: The experiment supports protocol testing and methods planning "
+        "for this question; it does not establish real-world effectiveness."
     )
     introduction = (
         f"The research question was: {plan.question} The simulation was designed to "
@@ -1599,6 +1745,7 @@ def _make_report(
         f"Population and setting: {plan.population}\n\n"
         f"Exposure/intervention and comparator: {plan.exposure_or_intervention}; "
         f"comparator was {plan.comparator}\n\n"
+        f"{methods_detail}\n\n"
         f"Data collection: {len(instruments)} variable-level fields were mapped to "
         "instrument sections, timing, collection mode, definitions, and quality-control "
         f"checks. The follow-up schedule contained {len(follow_up)} planned timepoints.\n\n"
@@ -1612,16 +1759,17 @@ def _make_report(
         f"contains {len(sensitivity_analysis)} rows across seed perturbations."
     )
     results = (
-        f"The simulation generated {len(study.data)} records with seed {study.seed}. "
-        f"Outcome recording produced {len(outcome_record)} metrics. "
+        f"{key_result} The simulation generated {len(study.data)} records with "
+        f"seed {study.seed}. Outcome recording produced {len(outcome_record)} metrics. "
         f"Realism audit produced {len(realism_audit)} field checks and readiness "
         f"assessment produced {len(readiness_checklist)} quality gates. "
         f"The guideline checklist marked {len(guideline_checklist)} reporting items as "
         "addressed in the generated manuscript package. "
-        + " ".join(result_lines)
+        + " ".join(_result_lines(study))
     )
     discussion = (
-        "The simulated study demonstrates whether the proposed design can collect the "
+        f"{discussion_detail} The simulated study demonstrates whether the proposed "
+        "design can collect the "
         "required measurements, maintain a transparent follow-up structure, and return "
         "design-appropriate estimates. The additional tables and figures allow reviewers "
         "to inspect data structure, missingness, model outputs, and interpretation logic. "

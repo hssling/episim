@@ -54,6 +54,12 @@ def test_conduct_research_returns_complete_research_bundle() -> None:
     assert "## References" in bundle.report.markdown
     assert "## Declarations" in bundle.report.markdown
     assert "synthetic" in bundle.report.abstract.lower()
+    report = bundle.report.markdown.lower()
+    assert "12-month frailty event" in report
+    assert "intervention arm" in report
+    assert "comparator arm" in report
+    assert "risk ratio" in report
+    assert "absolute risk difference" in report
 
 
 def test_research_bundle_archive_writes_complete_outputs(tmp_path) -> None:
