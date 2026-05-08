@@ -113,16 +113,11 @@ def _run_research_question(
     Any,
     Any,
     str,
-    str,
 ]:
     overrides = json.loads(overrides_json) if overrides_json.strip() else {}
+    overrides.setdefault("sensitivity_runs", 1)
     selected_design = None if design_key == "auto" else design_key
     bundle = conduct_research(question, design_key=selected_design, **overrides)
-
-    out_dir = Path(tempfile.mkdtemp(prefix=f"episim_research_{bundle.plan.design_key}_"))
-    bundle.archive(out_dir)
-    archive_base = out_dir / "research_bundle"
-    archive = shutil.make_archive(str(archive_base), "zip", root_dir=out_dir)
 
     protocol = (
         f"## Selected Design\n`{bundle.plan.design_key}`\n\n"
@@ -150,7 +145,6 @@ def _run_research_question(
         bundle.guideline_checklist,
         bundle.observations,
         bundle.report.markdown,
-        archive,
     )
 
 
@@ -204,7 +198,10 @@ with gr.Blocks(title="EPISIM Lab", theme=gr.themes.Soft()) as demo:
         )
         rq_observations = gr.Dataframe(label="Observation preview", interactive=False, wrap=True)
         rq_report = gr.Markdown(label="Manuscript-style report")
-        rq_bundle = gr.File(label="Complete research bundle")
+        gr.Markdown(
+            "Fast preview mode skips archive generation on the Space. "
+            "Use the Python API `bundle.archive(...)` for the full SQLite/figure bundle."
+        )
 
     with gr.Tab("Design Runner"):
         with gr.Row():
@@ -259,7 +256,6 @@ with gr.Blocks(title="EPISIM Lab", theme=gr.themes.Soft()) as demo:
             rq_checklist,
             rq_observations,
             rq_report,
-            rq_bundle,
         ],
     )
     design.change(fn=_design_defaults, inputs=design, outputs=[description, overrides])

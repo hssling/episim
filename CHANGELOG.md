@@ -2,6 +2,14 @@
 
 All notable changes to EPISIM are documented here. Format: Keep-a-Changelog. Versioning: SemVer.
 
+## [v0.12.2-alpha] - 2026-05-08
+
+### Changed
+
+- Changed Hugging Face research-question workflow to fast preview mode. The Space
+  now skips heavy archive, SQLite, and figure generation during interactive
+  preview and defaults to one sensitivity run unless overridden.
+
 ## [v0.12.1-alpha] - 2026-05-08
 
 ### Fixed
