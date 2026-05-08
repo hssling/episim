@@ -35,6 +35,34 @@ study = run_design("cohort", seed_value=20260508, n=3000)
 study.archive("results/cohort_demo")
 ```
 
+## Research question workflow
+
+`episim.research` provides a higher-level workflow for simulated research
+planning and execution. It turns a user question into aims, objectives,
+hypotheses, design selection, methodology, data-collection tools, simulated
+observations, follow-up schedules, outcome recording, results, discussion, and
+conclusions.
+
+```python
+from episim.research import conduct_research
+
+bundle = conduct_research(
+    "Does a randomized lifestyle intervention reduce frailty in community elders?",
+    seed_value=20260508,
+    n=2000,
+)
+
+bundle.plan.design_key
+bundle.instruments.head()
+bundle.outcome_record
+bundle.report.markdown
+bundle.archive("results/frailty_research_bundle")
+```
+
+The workflow generates synthetic data only. It is suitable for methods
+development, teaching, protocol refinement, and feasibility simulation; it is
+not evidence that a real intervention or exposure works in the real world.
+
 ## Interactive app
 
 The combined Gradio app lives at `apps/hf_space/app.py` and is suitable for

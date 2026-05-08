@@ -18,6 +18,7 @@ nav:
   - API:
     - Core: api/core.md
     - Designs: api/designs.md
+    - Research: api/research.md
 markdown_extensions:
   - admonition
   - pymdownx.highlight

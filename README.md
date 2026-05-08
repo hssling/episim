@@ -18,6 +18,22 @@ study = run_design("cohort", seed_value=20260507, n=4_000)
 study.archive("results/cohort_demo")
 ```
 
+EPISIM can also run a complete simulated research workflow from a plain-language
+research question:
+
+```python
+from episim.research import conduct_research
+
+bundle = conduct_research(
+    "Does a randomized lifestyle intervention reduce frailty in community elders?",
+    seed_value=20260508,
+    n=2_000,
+)
+bundle.archive("results/frailty_simulated_research")
+print(bundle.plan.hypotheses)
+print(bundle.report.markdown)
+```
+
 ## Status
 
 Alpha lab build with deterministic study archives and the full Phase-1 design registry.
@@ -46,6 +62,7 @@ Implemented surfaces currently include:
 
 - Package API for deterministic simulation and artifact archiving
 - Lab registry via `episim.lab`
+- Research-question-to-report workflow via `episim.research`
 - 18 notebooks for the full Phase-1 design catalog
 - Hugging Face Space app in `apps/hf_space/`
 - Kaggle publishing metadata in `platforms/kaggle/`

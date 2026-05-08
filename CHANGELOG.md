@@ -2,6 +2,18 @@
 
 All notable changes to EPISIM are documented here. Format: Keep-a-Changelog. Versioning: SemVer.
 
+## [v0.9.0-alpha] - 2026-05-08
+
+### Added
+
+- `episim.research` end-to-end simulated research workflow that turns a
+  plain-language research question into a protocol, design selection, aims,
+  objectives, hypotheses, methodology, data-collection tools, synthetic
+  observations, follow-up schedule, outcome record, results, discussion,
+  conclusions, and archiveable manuscript-style report.
+- Hugging Face Space UI support for the research-question workflow.
+- Research workflow API documentation and unit tests.
+
 ## [v0.8.0-alpha] - 2026-05-08
 
 ### Added

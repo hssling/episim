@@ -24,6 +24,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from episim.lab import get_design, list_designs, run_design, study_preview  # noqa: E402
+from episim.research import conduct_research  # noqa: E402
 
 
 def _catalog_rows() -> list[list[str]]:
@@ -90,6 +91,39 @@ def _run_experiment(
     )
 
 
+def _run_research_question(
+    question: str,
+    design_key: str,
+    overrides_json: str,
+) -> tuple[str, Any, Any, Any, Any, str, str]:
+    overrides = json.loads(overrides_json) if overrides_json.strip() else {}
+    selected_design = None if design_key == "auto" else design_key
+    bundle = conduct_research(question, design_key=selected_design, **overrides)
+
+    out_dir = Path(tempfile.mkdtemp(prefix=f"episim_research_{bundle.plan.design_key}_"))
+    bundle.archive(out_dir)
+    archive_base = out_dir / "research_bundle"
+    archive = shutil.make_archive(str(archive_base), "zip", root_dir=out_dir)
+
+    protocol = (
+        f"## Selected Design\n`{bundle.plan.design_key}`\n\n"
+        f"## Aim\n{bundle.plan.aim}\n\n"
+        "## Objectives\n"
+        + "\n".join(f"- {item}" for item in bundle.plan.objectives)
+        + "\n\n## Hypotheses\n"
+        + "\n".join(f"- {item}" for item in bundle.plan.hypotheses)
+    )
+    return (
+        protocol,
+        bundle.instruments,
+        bundle.follow_up_schedule,
+        bundle.outcome_record,
+        bundle.observations,
+        bundle.report.markdown,
+        archive,
+    )
+
+
 with gr.Blocks(title="EPISIM Lab", theme=gr.themes.Soft()) as demo:
     gr.Markdown(
         """
@@ -99,15 +133,58 @@ with gr.Blocks(title="EPISIM Lab", theme=gr.themes.Soft()) as demo:
         study designs in medicine and allied sciences.
         """
     )
-    with gr.Row():
-        design = gr.Dropdown(
-            choices=[spec.key for spec in list_designs()],
-            value="cross_sectional",
-            label="Design",
+    with gr.Tab("Research Question To Study"):
+        question = gr.Textbox(
+            value=(
+                "Does a randomized lifestyle intervention reduce frailty in "
+                "community-dwelling older adults?"
+            ),
+            label="Research question",
+            lines=3,
         )
-        run_button = gr.Button("Run experiment", variant="primary")
-    description = gr.Markdown()
-    overrides = gr.Code(label="Parameters (JSON)", language="json")
+        rq_design = gr.Dropdown(
+            choices=["auto", *[spec.key for spec in list_designs()]],
+            value="auto",
+            label="Design selection",
+        )
+        rq_overrides = gr.Code(
+            value=json.dumps({"seed_value": 20260508}, indent=2),
+            label="Optional parameter overrides (JSON)",
+            language="json",
+        )
+        rq_run = gr.Button("Conduct simulated research", variant="primary")
+        rq_protocol = gr.Markdown(label="Protocol")
+        rq_instruments = gr.Dataframe(label="Data collection tools", interactive=False, wrap=True)
+        rq_follow_up = gr.Dataframe(label="Follow-up schedule", interactive=False, wrap=True)
+        rq_outcomes = gr.Dataframe(label="Outcome record", interactive=False, wrap=True)
+        rq_observations = gr.Dataframe(label="Observation preview", interactive=False, wrap=True)
+        rq_report = gr.Markdown(label="Manuscript-style report")
+        rq_bundle = gr.File(label="Complete research bundle")
+
+    with gr.Tab("Design Runner"):
+        with gr.Row():
+            design = gr.Dropdown(
+                choices=[spec.key for spec in list_designs()],
+                value="cross_sectional",
+                label="Design",
+            )
+            run_button = gr.Button("Run experiment", variant="primary")
+        description = gr.Markdown()
+        overrides = gr.Code(label="Parameters (JSON)", language="json")
+
+        with gr.Tab("Catalog"):
+            gr.Dataframe(
+                headers=["key", "title", "family", "disciplines"],
+                value=_catalog_rows(),
+                interactive=False,
+                wrap=True,
+            )
+        with gr.Tab("Results"):
+            result_table = gr.Dataframe(label="Summary metrics", interactive=False, wrap=True)
+            data_preview = gr.Dataframe(label="Data preview", interactive=False, wrap=True)
+            artifact_preview = gr.Dataframe(label="Artifacts", interactive=False, wrap=True)
+            status = gr.Markdown()
+            bundle_file = gr.File(label="Archive bundle")
 
     with gr.Tab("Catalog"):
         gr.Dataframe(
@@ -116,13 +193,19 @@ with gr.Blocks(title="EPISIM Lab", theme=gr.themes.Soft()) as demo:
             interactive=False,
             wrap=True,
         )
-    with gr.Tab("Results"):
-        result_table = gr.Dataframe(label="Summary metrics", interactive=False, wrap=True)
-        data_preview = gr.Dataframe(label="Data preview", interactive=False, wrap=True)
-        artifact_preview = gr.Dataframe(label="Artifacts", interactive=False, wrap=True)
-        status = gr.Markdown()
-        bundle_file = gr.File(label="Archive bundle")
-
+    rq_run.click(
+        fn=_run_research_question,
+        inputs=[question, rq_design, rq_overrides],
+        outputs=[
+            rq_protocol,
+            rq_instruments,
+            rq_follow_up,
+            rq_outcomes,
+            rq_observations,
+            rq_report,
+            rq_bundle,
+        ],
+    )
     design.change(fn=_design_defaults, inputs=design, outputs=[description, overrides])
     run_button.click(
         fn=_run_experiment,
