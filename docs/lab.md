@@ -75,6 +75,9 @@ The archive contains:
 - analysis tables under `tables/`
 - PNG figures and `figure_plan.csv` under `figures/`
 - `guideline_checklist.csv`
+- `realism_audit.csv`
+- `sensitivity_analysis.csv`
+- `readiness_checklist.csv`
 
 The workflow generates synthetic data only. It is suitable for methods
 development, teaching, protocol refinement, and feasibility simulation; it is

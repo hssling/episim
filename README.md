@@ -39,6 +39,9 @@ cleaned analysis data, data-cleaning log, analysis-step log, a realistic
 synthetic data-collection toolset, database dictionary, collection-event audit
 trail, SQLite research database, analysis tables, PNG figures, guideline
 checklist, references, declarations, and a structured manuscript draft.
+It also includes realism auditing, multi-seed sensitivity summaries, and a
+readiness checklist that distinguishes synthetic workflow completeness from
+external calibration requirements.
 
 For higher-fidelity calibration, EPISIM outputs standard CSV and SQLite assets
 that can be compared with external synthetic-data or cloud data services such
@@ -77,6 +80,8 @@ Implemented surfaces currently include:
 - Research-question-to-report workflow via `episim.research`
 - Manuscript-grade research assets: tables, figures, checklist, declarations,
   references, and synthetic research database
+- Realism audit, sensitivity analysis, and readiness checks for each simulated
+  research bundle
 - 18 notebooks for the full Phase-1 design catalog
 - Hugging Face Space app in `apps/hf_space/`
 - Kaggle publishing metadata in `platforms/kaggle/`

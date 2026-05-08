@@ -39,7 +39,13 @@ def test_conduct_research_returns_complete_research_bundle() -> None:
     assert not bundle.observations.empty
     assert "table_1_study_profile" in bundle.analysis_tables
     assert "table_4_data_quality" in bundle.analysis_tables
+    assert "table_6_realism_audit" in bundle.analysis_tables
+    assert "table_7_sensitivity_analysis" in bundle.analysis_tables
+    assert "table_8_readiness_checklist" in bundle.analysis_tables
     assert not bundle.figure_plan.empty
+    assert not bundle.realism_audit.empty
+    assert not bundle.sensitivity_analysis.empty
+    assert not bundle.readiness_checklist.empty
     assert not bundle.guideline_checklist.empty
     assert not bundle.references.empty
     assert not bundle.declarations.empty
@@ -72,6 +78,9 @@ def test_research_bundle_archive_writes_complete_outputs(tmp_path) -> None:
         "follow_up_schedule.csv",
         "outcome_record.csv",
         "observations.csv",
+        "realism_audit.csv",
+        "sensitivity_analysis.csv",
+        "readiness_checklist.csv",
         "guideline_checklist.csv",
         "references.csv",
         "declarations.csv",
@@ -93,6 +102,9 @@ def test_research_bundle_archive_writes_complete_outputs(tmp_path) -> None:
     assert "cleaned_analysis_dataset" in tables
     assert "data_cleaning_log" in tables
     assert "analysis_steps" in tables
+    assert "realism_audit" in tables
+    assert "sensitivity_analysis" in tables
+    assert "readiness_checklist" in tables
     assert "collection_events" in tables
     assert bundle.plan.design_key == "qualitative_mixed_methods"
 

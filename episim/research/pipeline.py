@@ -72,6 +72,9 @@ class ResearchBundle:
     observations: pd.DataFrame
     analysis_tables: dict[str, pd.DataFrame]
     figure_plan: pd.DataFrame
+    realism_audit: pd.DataFrame
+    sensitivity_analysis: pd.DataFrame
+    readiness_checklist: pd.DataFrame
     guideline_checklist: pd.DataFrame
     references: pd.DataFrame
     declarations: pd.DataFrame
@@ -97,6 +100,9 @@ class ResearchBundle:
         self.follow_up_schedule.to_csv(out / "follow_up_schedule.csv", index=False)
         self.outcome_record.to_csv(out / "outcome_record.csv", index=False)
         self.observations.to_csv(out / "observations.csv", index=False)
+        self.realism_audit.to_csv(out / "realism_audit.csv", index=False)
+        self.sensitivity_analysis.to_csv(out / "sensitivity_analysis.csv", index=False)
+        self.readiness_checklist.to_csv(out / "readiness_checklist.csv", index=False)
         self.guideline_checklist.to_csv(out / "guideline_checklist.csv", index=False)
         self.references.to_csv(out / "references.csv", index=False)
         self.declarations.to_csv(out / "declarations.csv", index=False)
@@ -163,6 +169,8 @@ def conduct_research(
     *,
     design_key: str | None = None,
     seed_value: int = 20260508,
+    target_profile: dict[str, dict[str, float]] | None = None,
+    sensitivity_runs: int = 3,
     **parameter_overrides: Any,
 ) -> ResearchBundle:
     """Run a complete simulated research study from question to report."""
@@ -183,6 +191,17 @@ def conduct_research(
     outcome_record = _make_outcome_record(plan, study)
     observations = _make_observations(study)
     analysis_tables = _make_analysis_tables(plan, study, outcome_record)
+    realism_audit = _make_realism_audit(cleaned_data, target_profile)
+    sensitivity_analysis = _make_sensitivity_analysis(plan, sensitivity_runs)
+    readiness_checklist = _make_readiness_checklist(
+        plan=plan,
+        target_profile=target_profile,
+        realism_audit=realism_audit,
+        sensitivity_analysis=sensitivity_analysis,
+    )
+    analysis_tables["table_6_realism_audit"] = realism_audit
+    analysis_tables["table_7_sensitivity_analysis"] = sensitivity_analysis
+    analysis_tables["table_8_readiness_checklist"] = readiness_checklist
     figure_plan = _make_figure_plan(plan, study)
     guideline_checklist = _make_guideline_checklist(plan, study, analysis_tables)
     references = _make_references(plan.design_key)
@@ -196,6 +215,9 @@ def conduct_research(
         follow_up,
         outcome_record,
         analysis_tables,
+        realism_audit,
+        sensitivity_analysis,
+        readiness_checklist,
         guideline_checklist,
         references,
         declarations,
@@ -215,6 +237,9 @@ def conduct_research(
         observations=observations,
         analysis_tables=analysis_tables,
         figure_plan=figure_plan,
+        realism_audit=realism_audit,
+        sensitivity_analysis=sensitivity_analysis,
+        readiness_checklist=readiness_checklist,
         guideline_checklist=guideline_checklist,
         references=references,
         declarations=declarations,
@@ -945,6 +970,231 @@ def _artifact_index_table(study: Study) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def _make_realism_audit(
+    cleaned_data: pd.DataFrame,
+    target_profile: dict[str, dict[str, float]] | None,
+) -> pd.DataFrame:
+    rows: list[dict[str, Any]] = []
+    targets = target_profile or {}
+    for column in cleaned_data.columns:
+        if column == "episim_record_id":
+            continue
+        series = cleaned_data[column]
+        numeric = pd.to_numeric(series, errors="coerce")
+        target = targets.get(str(column), {})
+        if numeric.notna().any():
+            mean_value = float(numeric.mean())
+            sd_value = float(numeric.std(ddof=1)) if numeric.notna().sum() > 1 else 0.0
+            min_value = float(numeric.min())
+            max_value = float(numeric.max())
+            target_mean = target.get("mean")
+            target_min = target.get("min")
+            target_max = target.get("max")
+            deviation = (
+                abs(mean_value - target_mean) / max(abs(target_mean), 1.0)
+                if target_mean is not None
+                else None
+            )
+            status = _realism_status(deviation, min_value, max_value, target_min, target_max)
+            rows.append(
+                {
+                    "variable": str(column),
+                    "observed_mean": round(mean_value, 4),
+                    "observed_sd": round(sd_value, 4),
+                    "observed_min": round(min_value, 4),
+                    "observed_max": round(max_value, 4),
+                    "target_mean": target_mean,
+                    "target_min": target_min,
+                    "target_max": target_max,
+                    "relative_mean_deviation": round(deviation, 4)
+                    if deviation is not None
+                    else None,
+                    "status": status,
+                    "calibration_note": _calibration_note(target),
+                }
+            )
+        else:
+            rows.append(
+                {
+                    "variable": str(column),
+                    "observed_mean": None,
+                    "observed_sd": None,
+                    "observed_min": None,
+                    "observed_max": None,
+                    "target_mean": None,
+                    "target_min": None,
+                    "target_max": None,
+                    "relative_mean_deviation": None,
+                    "status": "descriptive_review",
+                    "calibration_note": "Non-numeric field; inspect category frequencies.",
+                }
+            )
+    if not rows:
+        rows.append(
+            {
+                "variable": "dataset",
+                "observed_mean": None,
+                "observed_sd": None,
+                "observed_min": None,
+                "observed_max": None,
+                "target_mean": None,
+                "target_min": None,
+                "target_max": None,
+                "relative_mean_deviation": None,
+                "status": "no_fields",
+                "calibration_note": "No auditable fields were available.",
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def _realism_status(
+    deviation: float | None,
+    observed_min: float,
+    observed_max: float,
+    target_min: float | None,
+    target_max: float | None,
+) -> str:
+    if target_min is not None and observed_min < target_min:
+        return "outside_target_range"
+    if target_max is not None and observed_max > target_max:
+        return "outside_target_range"
+    if deviation is None:
+        return "needs_external_target"
+    if deviation <= 0.10:
+        return "calibrated_close"
+    if deviation <= 0.25:
+        return "calibrated_moderate"
+    return "calibration_review"
+
+
+def _calibration_note(target: dict[str, float]) -> str:
+    if target:
+        return "Compared with user-supplied target profile."
+    return (
+        "No external target supplied; calibrate with registry, literature, "
+        "public synthetic FHIR/Synthea data, or authenticated cloud outputs."
+    )
+
+
+def _make_sensitivity_analysis(plan: ResearchPlan, sensitivity_runs: int) -> pd.DataFrame:
+    runs = max(1, min(int(sensitivity_runs), 12))
+    metric_rows: list[dict[str, Any]] = []
+    base_seed = int(plan.parameters.get("seed_value", 20260508))
+    for index in range(runs):
+        params = dict(plan.parameters)
+        params["seed_value"] = base_seed + index
+        study = run_design(plan.design_key, **params)
+        numeric_results = {
+            key: value for key, value in study.results.items() if isinstance(value, int | float)
+        }
+        if not numeric_results:
+            metric_rows.append(
+                {
+                    "metric": "records",
+                    "seed": params["seed_value"],
+                    "value": len(study.data),
+                    "summary_type": "run",
+                }
+            )
+        for metric, value in numeric_results.items():
+            metric_rows.append(
+                {
+                    "metric": metric,
+                    "seed": params["seed_value"],
+                    "value": float(value),
+                    "summary_type": "run",
+                }
+            )
+    raw = pd.DataFrame(metric_rows)
+    summaries: list[dict[str, Any]] = []
+    for metric, group in raw.groupby("metric", sort=True):
+        values = pd.to_numeric(group["value"], errors="coerce")
+        summaries.append(
+            {
+                "metric": metric,
+                "seed": "all",
+                "value": round(float(values.mean()), 6),
+                "summary_type": "mean",
+            }
+        )
+        summaries.append(
+            {
+                "metric": metric,
+                "seed": "all",
+                "value": round(float(values.std(ddof=1)), 6)
+                if len(values.dropna()) > 1
+                else 0.0,
+                "summary_type": "sd",
+            }
+        )
+        summaries.append(
+            {
+                "metric": metric,
+                "seed": "all",
+                "value": round(float(values.min()), 6),
+                "summary_type": "min",
+            }
+        )
+        summaries.append(
+            {
+                "metric": metric,
+                "seed": "all",
+                "value": round(float(values.max()), 6),
+                "summary_type": "max",
+            }
+        )
+    return pd.concat([raw, pd.DataFrame(summaries)], ignore_index=True)
+
+
+def _make_readiness_checklist(
+    *,
+    plan: ResearchPlan,
+    target_profile: dict[str, dict[str, float]] | None,
+    realism_audit: pd.DataFrame,
+    sensitivity_analysis: pd.DataFrame,
+) -> pd.DataFrame:
+    has_target = bool(target_profile)
+    realism_flags = int(
+        realism_audit["status"].isin(["outside_target_range", "calibration_review"]).sum()
+    )
+    rows = [
+        (
+            "research_question",
+            "complete",
+            f"Question mapped to {plan.design_key}.",
+        ),
+        (
+            "design_execution",
+            "complete",
+            "Registered EPISIM design executed with deterministic seed.",
+        ),
+        (
+            "realism_calibration",
+            "complete" if has_target and realism_flags == 0 else "needs_review",
+            "Target profile supplied and checked."
+            if has_target
+            else "No external target profile supplied.",
+        ),
+        (
+            "sensitivity_analysis",
+            "complete" if not sensitivity_analysis.empty else "needs_review",
+            "Multi-seed metric stability table generated.",
+        ),
+        (
+            "manuscript_assets",
+            "complete",
+            "Report, tables, figures, references, and declarations generated.",
+        ),
+        (
+            "real_world_inference",
+            "not_applicable",
+            "Synthetic study only; real-world inference requires empirical calibration.",
+        ),
+    ]
+    return pd.DataFrame(rows, columns=["domain", "status", "note"])
+
+
 def _make_figure_plan(plan: ResearchPlan, study: Study) -> pd.DataFrame:
     rows = [
         {
@@ -1069,6 +1319,13 @@ def _write_sqlite_database(bundle: ResearchBundle, path: Path) -> None:
             "follow_up_schedule", con, index=False, if_exists="replace"
         )
         bundle.outcome_record.to_sql("outcome_record", con, index=False, if_exists="replace")
+        bundle.realism_audit.to_sql("realism_audit", con, index=False, if_exists="replace")
+        bundle.sensitivity_analysis.to_sql(
+            "sensitivity_analysis", con, index=False, if_exists="replace"
+        )
+        bundle.readiness_checklist.to_sql(
+            "readiness_checklist", con, index=False, if_exists="replace"
+        )
         bundle.guideline_checklist.to_sql(
             "guideline_checklist", con, index=False, if_exists="replace"
         )
@@ -1290,6 +1547,9 @@ def _make_report(
     follow_up: pd.DataFrame,
     outcome_record: pd.DataFrame,
     analysis_tables: dict[str, pd.DataFrame],
+    realism_audit: pd.DataFrame,
+    sensitivity_analysis: pd.DataFrame,
+    readiness_checklist: pd.DataFrame,
     guideline_checklist: pd.DataFrame,
     references: pd.DataFrame,
     declarations: pd.DataFrame,
@@ -1351,11 +1611,14 @@ def _make_report(
         f"Analysis: {'; '.join(plan.analysis_plan)} Data-quality checks, variable "
         f"summaries, primary estimates, and interpretation tables were generated. "
         f"Analysis table inventory: {table_inventory}. A step-by-step analysis log "
-        f"contains {len(analysis_steps_record)} recorded steps."
+        f"contains {len(analysis_steps_record)} recorded steps. Sensitivity analysis "
+        f"contains {len(sensitivity_analysis)} rows across seed perturbations."
     )
     results = (
         f"The simulation generated {len(study.data)} records with seed {study.seed}. "
         f"Outcome recording produced {len(outcome_record)} metrics. "
+        f"Realism audit produced {len(realism_audit)} field checks and readiness "
+        f"assessment produced {len(readiness_checklist)} quality gates. "
         f"The guideline checklist marked {len(guideline_checklist)} reporting items as "
         "addressed in the generated manuscript package. "
         + " ".join(result_lines)
@@ -1387,6 +1650,9 @@ def _make_report(
         guideline_checklist=guideline_checklist,
         cleaning_log=cleaning_log,
         analysis_steps_record=analysis_steps_record,
+        realism_audit=realism_audit,
+        sensitivity_analysis=sensitivity_analysis,
+        readiness_checklist=readiness_checklist,
         references=references,
         declarations=declarations,
     )
@@ -1457,6 +1723,9 @@ def _report_markdown(
     guideline_checklist: pd.DataFrame,
     cleaning_log: pd.DataFrame,
     analysis_steps_record: pd.DataFrame,
+    realism_audit: pd.DataFrame,
+    sensitivity_analysis: pd.DataFrame,
+    readiness_checklist: pd.DataFrame,
     references: pd.DataFrame,
     declarations: pd.DataFrame,
 ) -> str:
@@ -1509,6 +1778,16 @@ def _report_markdown(
             "### Analysis Steps",
             _markdown_table(analysis_steps_record),
             "",
+            "### Realism And Calibration Audit",
+            _markdown_table(
+                realism_audit[
+                    ["variable", "status", "relative_mean_deviation", "calibration_note"]
+                ].head(20)
+            ),
+            "",
+            "### Sensitivity Analysis",
+            _markdown_table(sensitivity_analysis.head(24)),
+            "",
             "### Reporting Guideline Checklist",
             _markdown_table(guideline_checklist[["item", "status", "location"]].head(20)),
             "",
@@ -1528,6 +1807,9 @@ def _report_markdown(
             "",
             "## Limitations",
             *[f"- {item}" for item in limitations],
+            "",
+            "## Readiness Checklist",
+            _markdown_table(readiness_checklist),
             "",
             "## Conclusions",
             conclusion,

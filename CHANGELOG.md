@@ -2,6 +2,20 @@
 
 All notable changes to EPISIM are documented here. Format: Keep-a-Changelog. Versioning: SemVer.
 
+## [v0.12.0-alpha] - 2026-05-08
+
+### Added
+
+- Added target-profile realism auditing for synthetic datasets, including
+  calibration flags when external registry/literature/cloud-derived targets are
+  provided.
+- Added multi-seed sensitivity analysis summaries for design-specific metrics.
+- Added readiness checklist outputs that separate completed synthetic-research
+  assets from items needing external calibration before real-world inference.
+- Hardened the Hugging Face research workflow by limiting large web previews
+  while preserving full collected and cleaned datasets in the downloadable
+  research bundle.
+
 ## [v0.11.0-alpha] - 2026-05-08
 
 ### Added

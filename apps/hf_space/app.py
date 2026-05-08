@@ -95,7 +95,26 @@ def _run_research_question(
     question: str,
     design_key: str,
     overrides_json: str,
-) -> tuple[str, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, Any, str, str]:
+) -> tuple[
+    str,
+    Any,
+    Any,
+    Any,
+    Any,
+    Any,
+    Any,
+    Any,
+    Any,
+    Any,
+    Any,
+    Any,
+    Any,
+    Any,
+    Any,
+    Any,
+    str,
+    str,
+]:
     overrides = json.loads(overrides_json) if overrides_json.strip() else {}
     selected_design = None if design_key == "auto" else design_key
     bundle = conduct_research(question, design_key=selected_design, **overrides)
@@ -115,8 +134,8 @@ def _run_research_question(
     )
     return (
         protocol,
-        bundle.collected_data,
-        bundle.cleaned_data,
+        bundle.collected_data.head(200),
+        bundle.cleaned_data.head(200),
         bundle.cleaning_log,
         bundle.analysis_steps_record,
         bundle.instruments,
@@ -125,6 +144,9 @@ def _run_research_question(
         bundle.follow_up_schedule,
         bundle.outcome_record,
         bundle.analysis_tables["table_2_variable_summary"],
+        bundle.realism_audit,
+        bundle.sensitivity_analysis,
+        bundle.readiness_checklist,
         bundle.guideline_checklist,
         bundle.observations,
         bundle.report.markdown,
@@ -174,6 +196,9 @@ with gr.Blocks(title="EPISIM Lab", theme=gr.themes.Soft()) as demo:
         rq_follow_up = gr.Dataframe(label="Follow-up schedule", interactive=False, wrap=True)
         rq_outcomes = gr.Dataframe(label="Outcome record", interactive=False, wrap=True)
         rq_variables = gr.Dataframe(label="Variable summary table", interactive=False, wrap=True)
+        rq_realism = gr.Dataframe(label="Realism audit", interactive=False, wrap=True)
+        rq_sensitivity = gr.Dataframe(label="Sensitivity analysis", interactive=False, wrap=True)
+        rq_readiness = gr.Dataframe(label="Readiness checklist", interactive=False, wrap=True)
         rq_checklist = gr.Dataframe(
             label="Reporting guideline checklist", interactive=False, wrap=True
         )
@@ -228,6 +253,9 @@ with gr.Blocks(title="EPISIM Lab", theme=gr.themes.Soft()) as demo:
             rq_follow_up,
             rq_outcomes,
             rq_variables,
+            rq_realism,
+            rq_sensitivity,
+            rq_readiness,
             rq_checklist,
             rq_observations,
             rq_report,
